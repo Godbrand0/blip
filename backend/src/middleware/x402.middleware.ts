@@ -1,22 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
+import { paymentService } from '../services/payment.service';
 
 /**
- * @dev Placeholder middleware for x402 payment validation.
- * In a full implementation, this would verify a payment receipt or token
- * against the on-chain registry or a payment provider.
+ * @dev Middleware for x402 payment validation.
+ * Verifies the 'x-payment-token' header using the PaymentService.
  */
 export const x402Validation = (req: Request, res: Response, next: NextFunction) => {
-  const paymentToken = req.headers['x-payment-token'];
+  const paymentToken = req.headers['x-payment-token'] as string;
 
-  // MVP Placeholder: If a token exists, we "validate" it. 
-  // In production, this would perform cryptographic verification.
   if (!paymentToken) {
-    // For now, only log and allow (or reject if strict MVP testing required)
-    console.warn('[x402] No payment token provided in headers');
-  } else {
-    console.log(`[x402] Validating payment token: ${paymentToken}`);
+    return res.status(402).json({
+      error: 'Payment Required',
+      message: 'This resource requires an x402 payment token in the headers.'
+    });
   }
 
-  // Proceed to next handler
+  const isValid = paymentService.verifyReceipt(paymentToken);
+
+  if (!isValid) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Invalid or expired payment token.'
+    });
+  }
+
   next();
 };

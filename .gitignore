@@ -10,9 +10,14 @@ out/
 # Docs
 docs/
 
-# Dotenv files
-*.env
-.env.*
+# Dotenv files (but keep .env.example files)
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+!.env.example
 
 # Node.js
 node_modules/

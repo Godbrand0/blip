@@ -1,6 +1,4 @@
-# BLIP Backend Setup
-
-This backend will handle the x402 payment layer, Chainlink CRE workflow, and API endpoints for the BLIP platform.
+backend will handle the x402 payment layer, Chainlink CRE workflow, and API endpoints for the BLIP platform.
 
 ## Installation
 
