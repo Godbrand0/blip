@@ -1,9 +1,13 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { blockchainService } from '../services/blockchain.service';
 import { paymentService } from '../services/payment.service';
+import { ipfsService } from '../services/ipfs.service';
 import { x402Validation } from '../middleware/x402.middleware';
+import fs from 'fs';
 
 const router = Router();
+const upload = multer({ dest: 'uploads/' });
 
 router.post('/register', async (req, res) => {
   const { contentHash, metadataURI, sources, percentages } = req.body;
