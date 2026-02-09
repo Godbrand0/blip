@@ -1,0 +1,9 @@
+schemaVersion: 1.0.0
+name: blip-workflow
+type: script
+config:
+  entrypoint: src/workflow.ts
+targets:
+  dev:
+    rpcUrl: https://rpc.ankr.com/eth_sepolia
+    networkId: 11155111

@@ -1,0 +1,8 @@
+schemaVersion: 1.0.0
+name: blip-cre
+config:
+  attributionAgentUrl: http://localhost:8000
+targets:
+  dev:
+    rpcUrl: https://rpc.ankr.com/eth_sepolia
+    networkId: 11155111
