@@ -1,66 +1,10 @@
-## Foundry
+# BLIP
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Blockchain-based Licensing & Intellectual Property platform.
 
-Foundry consists of:
+## Deployed Contracts (Base Mainnet)
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+| Contract | Address | BaseScan |
+|---|---|---|
+| ContentRegistry | `0x2A09a64C88713320fAa92D5eb3708CdE3CF4F0D2` | [View on BaseScan](https://basescan.org/address/0x2a09a64c88713320faa92d5eb3708cde3cf4f0d2) |
+| RoyaltyPayout | `0x96AE27E665304d99A41f11c11C516A1a924B5579` | [View on BaseScan](https://basescan.org/address/0x96ae27e665304d99a41f11c11c516a1a924b5579) |

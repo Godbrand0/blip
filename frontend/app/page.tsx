@@ -1,120 +1,143 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount, useWriteContract } from "wagmi";
-import axios from "axios";
+import { useReadContract, useReadContracts } from "wagmi";
+import Link from "next/link";
+import { AuthGate } from "@/src/components/AuthGate";
+import ContentRegistryABI from "@/src/abis/ContentRegistry.json";
 
-export default function Home() {
-  const { isConnected, address } = useAccount();
-  const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<string>("");
-  const [metadata, setMetadata] = useState({ name: "", description: "" });
-  const [loading, setLoading] = useState(false);
+const REGISTRY_ADDRESS = ContentRegistryABI.address as `0x${string}`;
 
-  const handleUpload = async () => {
-    if (!file) return alert("Select a file first");
-    setLoading(true);
-    setStatus("Uploading to IPFS...");
+export default function HomePage() {
+  return (
+    <AuthGate>
+      <Feed />
+    </AuthGate>
+  );
+}
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+function Feed() {
+  const { data: nextId } = useReadContract({
+    address: REGISTRY_ADDRESS,
+    abi: ContentRegistryABI.abi,
+    functionName: "nextContentId",
+  });
 
-      const res = await axios.post("http://localhost:3001/api/content/upload", formData);
-      const { cid } = res.data;
-      
-      setStatus(`File uploaded! CID: ${cid}`);
-      // In a real app, you'd then call registerContent on the smart contract here
-      console.log("Ready for contract registration with CID:", cid);
-    } catch (error) {
-      console.error(error);
-      setStatus("Upload failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const contentCount = nextId ? Number(nextId) : 0;
+  const contentCalls = Array.from({ length: contentCount }, (_, i) => ({
+    address: REGISTRY_ADDRESS as `0x${string}`,
+    abi: ContentRegistryABI.abi,
+    functionName: "contents" as const,
+    args: [BigInt(i)] as const,
+  }));
+
+  const { data: contentsData, isLoading } = useReadContracts({
+    contracts: contentCalls,
+  });
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-black p-8 font-sans text-white">
-      <div className="w-full max-w-2xl space-y-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 shadow-2xl backdrop-blur-sm">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight">Register Content</h1>
-          <p className="text-zinc-400">Secure your IP and start earning royalties globally.</p>
+    <div className="min-h-screen bg-black p-6 text-white">
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Feed</h1>
+            <p className="text-zinc-400 text-sm mt-1">
+              Discover registered content on BLIP.
+            </p>
+          </div>
+          <Link
+            href="/upload"
+            className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-black transition-all hover:bg-zinc-200"
+          >
+            + Register
+          </Link>
         </div>
 
-        {!isConnected ? (
-          <div className="rounded-xl bg-zinc-800/50 p-6 text-center">
-            <p className="text-zinc-300">Please connect your wallet to start registering content.</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-zinc-300">Content File</label>
-              <div 
-                className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 bg-zinc-800/20 py-12 transition-colors hover:bg-zinc-800/40"
-                onClick={() => document.getElementById('file-input')?.click()}
+        {isLoading && (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 animate-pulse"
               >
-                <input 
-                  id="file-input"
-                  type="file" 
-                  className="hidden" 
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-                {file ? (
-                  <div className="text-center">
-                    <p className="text-green-400 font-medium">{file.name}</p>
-                    <p className="text-xs text-zinc-500 mt-1">{(file.size / 1024).toFixed(2)} KB</p>
-                  </div>
-                ) : (
-                  <div className="text-center space-y-2">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800">
-                      <svg className="h-6 w-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                    <p className="text-sm text-zinc-400">Click to upload or drag and drop</p>
-                    <p className="text-xs text-zinc-500 italic">Supports text, image, and code files</p>
-                  </div>
-                )}
+                <div className="h-4 bg-zinc-800 rounded w-1/4 mb-3" />
+                <div className="h-3 bg-zinc-800 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-zinc-800 rounded w-1/2" />
               </div>
-            </div>
+            ))}
+          </div>
+        )}
 
-            <div className="grid grid-cols-2 gap-4">
-               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Title</label>
-                <input 
-                  type="text" 
-                  placeholder="Original Work Title"
-                  className="w-full rounded-lg bg-zinc-800 border-none px-4 py-2 text-sm focus:ring-1 focus:ring-zinc-600 outline-none"
-                  value={metadata.name}
-                  onChange={(e) => setMetadata({...metadata, name: e.target.value})}
-                />
-               </div>
-               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Description</label>
-                <input 
-                  type="text" 
-                  placeholder="Tell us about your work..."
-                  className="w-full rounded-lg bg-zinc-800 border-none px-4 py-2 text-sm focus:ring-1 focus:ring-zinc-600 outline-none"
-                  value={metadata.description}
-                  onChange={(e) => setMetadata({...metadata, description: e.target.value})}
-                />
-               </div>
-            </div>
+        {!isLoading && contentsData && contentsData.length > 0 && (
+          <div className="space-y-4">
+            {contentsData.map((result, index) => {
+              if (result.status !== "success") return null;
+              const data = result.result as [string, string, string, boolean, boolean, bigint];
+              const [contentHash, , creator, isValidated, isHuman, timestamp] = data;
+              return (
+                <div
+                  key={index}
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-400">
+                      Content #{index}
+                    </span>
+                    <span className="text-xs text-zinc-600">
+                      {new Date(
+                        Number(timestamp) * 1000
+                      ).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-zinc-300 font-mono truncate">
+                    CID: {contentHash}
+                  </p>
+                  <p className="text-xs text-zinc-500 truncate">
+                    Creator: {creator}
+                  </p>
+                  <div className="flex gap-2">
+                    {isValidated && (
+                      <span className="text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded">
+                        Validated
+                      </span>
+                    )}
+                    {isHuman && (
+                      <span className="text-xs bg-blue-900/50 text-blue-400 px-2 py-0.5 rounded">
+                        Human
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-            <button 
-              onClick={handleUpload}
-              disabled={loading || !file}
-              className="w-full rounded-xl bg-white px-6 py-4 font-bold text-black transition-all hover:bg-zinc-200 disabled:opacity-50"
+        {!isLoading && contentCount === 0 && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-12 text-center space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800">
+              <svg
+                className="h-8 w-8 text-zinc-500"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                />
+              </svg>
+            </div>
+            <p className="text-zinc-500">
+              No content registered yet. Be the first!
+            </p>
+            <Link
+              href="/upload"
+              className="inline-block rounded-xl bg-white px-6 py-3 font-bold text-black transition-all hover:bg-zinc-200"
             >
-              {loading ? "Processing..." : "Register & Pin to IPFS"}
-            </button>
-
-            {status && (
-              <p className="text-center text-sm text-zinc-500 bg-zinc-800/30 p-3 rounded-lg border border-zinc-700/50">
-                {status}
-              </p>
-            )}
+              Register Content
+            </Link>
           </div>
         )}
       </div>

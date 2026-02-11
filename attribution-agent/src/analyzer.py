@@ -2,7 +2,9 @@ from fastapi import FastAPI
 import uvicorn
 import os
 import google.generativeai as genai
+import json
 from dotenv import load_dotenv
+from .models import AnalysisRequest, AnalysisResponse, AttributionSource
 
 load_dotenv()
 
@@ -24,10 +26,14 @@ CONTENT_DATABASE = [
 ]
 
 @app.post("/analyze")
-async def analyze_content(request: dict):
-    content = request.get("content", "")
-    if not content:
-        return {"confidence": 0, "attributed_sources": [], "similarity_score": 0}
+async def analyze_content(request: AnalysisRequest):
+    if not request.content:
+        return AnalysisResponse(
+            confidence=0, 
+            attributed_sources=[], 
+            similarity_score=0,
+            error="No content provided"
+        )
 
     # Prepare context from our "database"
     database_context = "\n".join([f"Source: {entry['creator']}\nText: {entry['text']}" for entry in CONTENT_DATABASE])
@@ -40,7 +46,7 @@ async def analyze_content(request: dict):
     {database_context}
     
     Submitted Content:
-    {content}
+    {request.content}
     
     Task:
     1. Identify if the 'Submitted Content' is derived from, similar to, or plagiarized from any of the sources.
@@ -60,21 +66,27 @@ async def analyze_content(request: dict):
 
     try:
         response = model.generate_content(prompt)
-        # In a real app, we would parse the JSON strictly. 
-        # For MVP, we extract the response text.
-        import json
-        # Strip potential markdown formatting if Gemini adds it
+        # Parse JSON response from Gemini
         json_str = response.text.replace('```json', '').replace('```', '').strip()
         result = json.loads(json_str)
-        return result
+        
+        # Return structured response with Pydantic model
+        return AnalysisResponse(
+            confidence=result.get("confidence", 0.0),
+            similarity_score=result.get("similarity_score", 0.0),
+            attributed_sources=[
+                AttributionSource(**source) for source in result.get("attributed_sources", [])
+            ]
+        )
     except Exception as e:
         print(f"Gemini Analysis Error: {e}")
-        return {
-            "confidence": 0.5,
-            "attributed_sources": [],
-            "similarity_score": 0,
-            "error": "Failed to reach Gemini AI"
-        }
+        # Return explicit failure response instead of ambiguous 0.5
+        return AnalysisResponse(
+            confidence=0.0,
+            similarity_score=0.0,
+            attributed_sources=[],
+            error=f"AI analysis failed: {str(e)}"
+        )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
