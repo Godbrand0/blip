@@ -41,6 +41,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (!result.success) throw new Error("World ID verification failed.");
 
       console.log("Verification successful!");
+      
+      // Handle the case where user was already verified
+      if (result.already_verified) {
+        console.log("User was already verified, setting verified status...");
+        setVerified(proof);
+      }
     } catch (error) {
       console.error("Verification process failed:", error);
       throw error;

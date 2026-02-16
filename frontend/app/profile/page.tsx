@@ -1,14 +1,16 @@
 "use client";
 
 import { useAccount, useReadContract, useReadContracts, useWriteContract } from "wagmi";
-import { formatEther } from "viem";
+import { formatEther, type Abi } from "viem";
 import { AuthGate } from "@/src/components/AuthGate";
 import { useAuth } from "@/src/contexts/AuthContext";
 import ContentRegistryABI from "@/src/abis/ContentRegistry.json";
 import RoyaltyPayoutABI from "@/src/abis/RoyaltyPayout.json";
 
 const REGISTRY_ADDRESS = ContentRegistryABI.address as `0x${string}`;
+const REGISTRY_ABI = ContentRegistryABI.abi as Abi;
 const ROYALTY_ADDRESS = RoyaltyPayoutABI.address as `0x${string}`;
+const ROYALTY_ABI = RoyaltyPayoutABI.abi as Abi;
 
 export default function ProfilePage() {
   return (
@@ -25,21 +27,21 @@ function Profile() {
 
   const { data: royaltyBalance } = useReadContract({
     address: ROYALTY_ADDRESS,
-    abi: RoyaltyPayoutABI.abi,
+    abi: ROYALTY_ABI,
     functionName: "balances",
     args: [address],
   });
 
   const { data: nextId } = useReadContract({
     address: REGISTRY_ADDRESS,
-    abi: ContentRegistryABI.abi,
+    abi: REGISTRY_ABI,
     functionName: "nextContentId",
   });
 
   const contentCount = nextId ? Number(nextId) : 0;
   const contentCalls = Array.from({ length: contentCount }, (_, i) => ({
     address: REGISTRY_ADDRESS as `0x${string}`,
-    abi: ContentRegistryABI.abi,
+    abi: REGISTRY_ABI,
     functionName: "contents" as const,
     args: [BigInt(i)] as const,
   }));
@@ -59,7 +61,7 @@ function Profile() {
   const handleClaim = () => {
     writeContract({
       address: ROYALTY_ADDRESS,
-      abi: RoyaltyPayoutABI.abi,
+      abi: ROYALTY_ABI,
       functionName: "claimRoyalties",
     });
   };
@@ -110,7 +112,7 @@ function Profile() {
           </p>
           <button
             onClick={handleClaim}
-            disabled={!balance || balance === 0n}
+            disabled={!balance || balance === BigInt(0)}
             className="rounded-xl bg-white px-6 py-3 font-bold text-black transition-all hover:bg-zinc-200 disabled:opacity-50"
           >
             Claim Royalties

@@ -25,7 +25,16 @@ export class BlockchainService {
     const contentRegistryAddress = process.env.CONTENT_REGISTRY_ADDRESS;
     const royaltyPayoutAddress = process.env.ROYALTY_PAYOUT_ADDRESS;
 
+    console.log('BlockchainService initialization:');
+    console.log('- RPC URL:', rpcUrl);
+    console.log('- Private Key:', privateKey ? 'SET' : 'NOT SET');
+    console.log('- Content Registry Address:', contentRegistryAddress);
+    console.log('- Royalty Payout Address:', royaltyPayoutAddress);
+
     if (!privateKey || !contentRegistryAddress) {
+      console.error('Missing required environment variables:');
+      if (!privateKey) console.error('- PRIVATE_KEY is not set');
+      if (!contentRegistryAddress) console.error('- CONTENT_REGISTRY_ADDRESS is not set');
       throw new Error(
         "Missing blockchain configuration in environment variables",
       );

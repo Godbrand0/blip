@@ -1,8 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
+import { useAccount } from "wagmi";
 import { AuthGate } from "@/src/components/AuthGate";
+
+export interface BlipPost {
+  id: string;
+  cid: string;
+  title: string;
+  description: string;
+  fileName: string;
+  fileType: string;
+  creator: string;
+  timestamp: number;
+  likes: number;
+}
+
+export function getLocalPosts(): BlipPost[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem("blip_posts");
+  return raw ? JSON.parse(raw) : [];
+}
+
+export function saveLocalPost(post: BlipPost) {
+  const posts = getLocalPosts();
+  posts.unshift(post);
+  localStorage.setItem("blip_posts", JSON.stringify(posts));
+}
 
 export default function UploadPage() {
   return (
@@ -17,6 +43,8 @@ function UploadForm() {
   const [status, setStatus] = useState<string>("");
   const [metadata, setMetadata] = useState({ name: "", description: "" });
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { address } = useAccount();
 
   const handleUpload = async () => {
     if (!file) return alert("Select a file first");
@@ -31,10 +59,24 @@ function UploadForm() {
       const res = await axios.post(`${apiUrl}/api/content/upload`, formData);
       const { cid } = res.data;
 
-      setStatus(`File uploaded! CID: ${cid}`);
-      console.log("Ready for contract registration with CID:", cid);
+      setStatus("Upload successful! Redirecting...");
+
+      const post: BlipPost = {
+        id: `${Date.now()}-${cid.slice(0, 8)}`,
+        cid,
+        title: metadata.name || file.name,
+        description: metadata.description || "",
+        fileName: file.name,
+        fileType: file.type,
+        creator: address || "0x0",
+        timestamp: Date.now(),
+        likes: 0,
+      };
+      saveLocalPost(post);
+
+      router.push("/");
     } catch (error) {
-      console.error(error);
+      console.error("Upload error:", error);
       setStatus("Upload failed.");
     } finally {
       setLoading(false);
