@@ -1,0 +1,41 @@
+// src/database/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Intent {
+  id                        String   @id @default(uuid())
+  intentId                  String   @unique
+  user                      String
+  amount                    String
+  recipient                 String
+  destinationChainSelector  String
+  ccipMessageId             String   @unique
+  status                    String   // PENDING, COMPLETED, FAILED
+  baseTxHash                String?
+  error                     String?
+  timestamp                 DateTime
+  completedAt               DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  
+  @@index([user])
+  @@index([ccipMessageId])
+  @@index([status])
+}
+
+model User {
+  id              String   @id @default(uuid())
+  address         String   @unique
+  worldIdVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([address])
+}
