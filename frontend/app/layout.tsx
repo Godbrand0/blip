@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { MiniKitProvider } from "@worldcoin/minikit-js/minikit-provider";
 import { Providers } from "./providers";
 import { NavBar } from "@/src/components/NavBar";
 
@@ -26,14 +27,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <Providers>
-          <main className="pb-16">{children}</main>
-          <NavBar />
-        </Providers>
-      </body>
+      <MiniKitProvider>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          <Providers>
+            <main className="pb-16">{children}</main>
+            <NavBar />
+          </Providers>
+        </body>
+      </MiniKitProvider>
     </html>
   );
 }

@@ -4,9 +4,17 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Loader2, Link as LinkIcon, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, Bot, User, Loader2, Link as LinkIcon, ExternalLink, CheckCircle } from 'lucide-react';
 import { useIntents } from '@/hooks/useIntents';
-import { ethers } from 'ethers';
+import { MiniKit } from '@worldcoin/minikit-js';
+import { useAuth } from '@/src/contexts/AuthContext';
+import {
+  USDC_ADDRESS,
+  VAULT_ADDRESS,
+  BASE_CHAIN_SELECTOR,
+  ERC20_ABI,
+  VAULT_ABI,
+} from '@/src/config/contracts';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -15,7 +23,13 @@ interface Message {
   data?: any;
 }
 
+// Convert a human-readable USDC amount to 6-decimal raw units
+function usdcToRaw(amount: number): string {
+  return BigInt(Math.round(amount * 1e6)).toString();
+}
+
 export function ChatInterface() {
+  const { isMiniKit } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -23,11 +37,12 @@ export function ChatInterface() {
       type: 'text'
     }
   ]);
-  
+
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [executingIntent, setExecutingIntent] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   const { intents, addIntent } = useIntents();
 
   const scrollToBottom = () => {
@@ -38,37 +53,112 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  // Execute bridge via MiniKit sendTransaction (inside World App)
+  const executeBridgeMiniKit = async (amount: number, recipient: string) => {
+    if (!MiniKit.isInstalled()) return;
+
+    const rawAmount = usdcToRaw(amount);
+
+    try {
+      const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({
+        transaction: [
+          // Step 1: Approve USDC to vault
+          {
+            address: USDC_ADDRESS as `0x${string}`,
+            abi: ERC20_ABI,
+            functionName: 'approve',
+            args: [VAULT_ADDRESS, rawAmount],
+          },
+          // Step 2: Create bridge intent
+          {
+            address: VAULT_ADDRESS as `0x${string}`,
+            abi: VAULT_ABI,
+            functionName: 'createIntent',
+            args: [rawAmount, recipient, BASE_CHAIN_SELECTOR],
+          },
+        ],
+      });
+
+      if (finalPayload.status === 'error') {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: 'Transaction was cancelled or failed. Please try again.',
+          type: 'text',
+        }]);
+        return;
+      }
+
+      // Add intent to tracker
+      addIntent({
+        intentId: finalPayload.transaction_id,
+        amount,
+        recipient,
+        status: 'PENDING',
+        txHash: finalPayload.transaction_id,
+      });
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Bridge transaction submitted! Tracking your ${amount} USDC transfer to Base.`,
+        type: 'status',
+      }]);
+    } catch (err: any) {
+      console.error('MiniKit sendTransaction error:', err);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Transaction failed: ${err.message || 'Unknown error'}`,
+        type: 'text',
+      }]);
+    }
+  };
+
+  // Handle execute button click
+  const handleExecuteBridge = async (data: any) => {
+    const key = `${data.amount}-${data.recipient}`;
+    setExecutingIntent(key);
+
+    try {
+      if (isMiniKit) {
+        await executeBridgeMiniKit(data.amount, data.recipient);
+      } else {
+        // Browser flow: wagmi transaction would go here
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: 'Browser-based bridge execution coming soon. Open in World App for full functionality.',
+          type: 'text',
+        }]);
+      }
+    } finally {
+      setExecutingIntent(null);
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return;
-    
+
     const userMessage: Message = { role: 'user', content: input, type: 'text' };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsProcessing(true);
-    
+
     try {
-      // 1. Call AI to parse intent
+      // Call AI to parse intent
       const aiResponse = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input })
       });
-      
+
       const aiData = await aiResponse.json();
-      
+
       if (aiData.action === 'send') {
         const confirmMessage: Message = {
           role: 'assistant',
-          content: `I've prepared a transfer of ${aiData.amount} USDC to ${aiData.recipient} on Base. Please approve the transaction in your wallet.`,
+          content: `I've prepared a transfer of ${aiData.amount} USDC to ${aiData.recipient} on Base. Please approve the transaction.`,
           type: 'intent',
           data: aiData
         };
         setMessages(prev => [...prev, confirmMessage]);
-        
-        // Note: Real transaction execution would happen here via wagmi/ethers/minikit
-        // For the MVP, we'll simulate the intent creation if the user were to click a button
-        // But for this chat flow, we'll wait for user action.
-        
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
@@ -121,16 +211,16 @@ export function ChatInterface() {
                 }`}>
                   {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                    msg.role === 'user' 
-                      ? 'bg-black text-white rounded-tr-none' 
+                    msg.role === 'user'
+                      ? 'bg-black text-white rounded-tr-none'
                       : 'bg-gray-100 text-gray-800 rounded-tl-none'
                   }`}>
                     {msg.content}
                   </div>
-                  
+
                   {msg.type === 'intent' && (
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl space-y-3">
                       <div className="flex items-center justify-between text-xs font-bold text-blue-600 uppercase tracking-wider">
@@ -151,8 +241,14 @@ export function ChatInterface() {
                         <p className="text-[10px] text-blue-400 font-bold uppercase">Recipient</p>
                         <p className="text-[11px] font-mono text-blue-900 break-all">{msg.data.recipient}</p>
                       </div>
-                      <button className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md">
-                        Execute Bridge Transfer
+                      <button
+                        onClick={() => handleExecuteBridge(msg.data)}
+                        disabled={executingIntent === `${msg.data.amount}-${msg.data.recipient}`}
+                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-50"
+                      >
+                        {executingIntent === `${msg.data.amount}-${msg.data.recipient}`
+                          ? 'Executing...'
+                          : 'Execute Bridge Transfer'}
                       </button>
                     </div>
                   )}
@@ -161,10 +257,10 @@ export function ChatInterface() {
             </motion.div>
           ))}
         </AnimatePresence>
-        
+
         {/* Active Intents Status */}
         {intents.filter(t => t.status === 'PENDING').map(intent => (
-          <motion.div 
+          <motion.div
             key={intent.ccipMessageId || intent.txHash}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -178,9 +274,9 @@ export function ChatInterface() {
               <p className="text-[10px] text-gray-400 mt-1 font-medium">Wait for CCIP finality (~5m)</p>
             </div>
             {intent.ccipExplorerUrl && (
-              <a 
-                href={intent.ccipExplorerUrl} 
-                target="_blank" 
+              <a
+                href={intent.ccipExplorerUrl}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-zinc-200"
               >
@@ -191,7 +287,7 @@ export function ChatInterface() {
         ))}
 
         {intents.filter(t => t.status === 'COMPLETED').slice(0, 1).map(intent => (
-          <motion.div 
+          <motion.div
             key={intent.ccipMessageId}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -205,9 +301,9 @@ export function ChatInterface() {
               <p className="text-[10px] text-green-600 mt-1 font-medium">Assets delivered to Base</p>
             </div>
             {intent.basescanUrl && (
-              <a 
-                href={intent.basescanUrl} 
-                target="_blank" 
+              <a
+                href={intent.basescanUrl}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-green-200"
               >
@@ -216,7 +312,7 @@ export function ChatInterface() {
             )}
           </motion.div>
         ))}
-        
+
         <div ref={messagesEndRef} />
       </div>
 

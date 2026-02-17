@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
@@ -7,20 +8,60 @@ import {
   VerificationLevel,
   ISuccessResult,
 } from "@worldcoin/idkit";
+import { MiniKit } from "@worldcoin/minikit-js";
 import { useAuth } from "@/src/contexts/AuthContext";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isConnected, address } = useAccount();
-  const { isWorldIdVerified, setVerified, walletAddress } = useAuth();
+  const { isWorldIdVerified, isMiniKit, setVerified, walletAddress } =
+    useAuth();
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleVerify = async (proof: ISuccessResult) => {
-    console.log("Starting World ID verification process...");
-    console.log("Proof data:", proof);
-    console.log("Current wallet address:", address);
+  // --- MiniKit verify flow (inside World App) ---
+  const handleMiniKitVerify = async () => {
+    if (!MiniKit.isInstalled()) return;
+    setVerifying(true);
+    setError(null);
 
+    try {
+      const { finalPayload } = await MiniKit.commandsAsync.verify({
+        action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID!,
+        verification_level: VerificationLevel.Device,
+      });
+
+      if (finalPayload.status === "error") {
+        setError("Verification was cancelled or failed.");
+        return;
+      }
+
+      // Verify proof server-side via Next.js API route
+      const res = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload: finalPayload,
+          action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID!,
+        }),
+      });
+
+      const result = await res.json();
+      if (result.status === 200) {
+        setVerified(finalPayload as ISuccessResult);
+      } else {
+        setError(result.verifyRes?.detail || "Verification failed.");
+      }
+    } catch (err: any) {
+      console.error("MiniKit verify error:", err);
+      setError(err.message || "Verification failed.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // --- IDKit verify flow (browser) ---
+  const handleBrowserVerify = async (proof: ISuccessResult) => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    console.log("Sending verification request to:", `${apiUrl}/api/verify`);
-
     try {
       const res = await fetch(`${apiUrl}/api/verify`, {
         method: "POST",
@@ -28,43 +69,64 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(proof),
       });
 
-      console.log("Verification response status:", res.status);
       const result = await res.json();
-      console.log("Verification response data:", result);
-
       if (!res.ok) {
-        console.error("Verification error details:", result);
         throw new Error(
           result?.details?.detail || result?.error || "Verification failed.",
         );
       }
       if (!result.success) throw new Error("World ID verification failed.");
 
-      console.log("Verification successful!");
-      
-      // Handle the case where user was already verified
       if (result.already_verified) {
-        console.log("User was already verified, setting verified status...");
         setVerified(proof);
       }
-    } catch (error) {
-      console.error("Verification process failed:", error);
-      throw error;
+    } catch (err) {
+      console.error("Verification process failed:", err);
+      throw err;
     }
   };
 
-  const onSuccess = (proof: ISuccessResult) => {
-    console.log("World ID verification successful, setting verified status...");
-    console.log("Proof:", proof);
-    console.log("Associated wallet address:", address);
+  const onBrowserSuccess = (proof: ISuccessResult) => {
     setVerified(proof);
   };
 
+  // --- MiniKit path: no wallet connect needed, World App provides wallet ---
+  if (isMiniKit) {
+    if (!isWorldIdVerified) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-black p-8 text-white">
+          <div className="w-full max-w-md space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Welcome to BLIP
+            </h1>
+            <p className="text-zinc-400">
+              Verify with World ID to access BLIP.
+            </p>
+            {error && (
+              <p className="text-sm text-red-400">{error}</p>
+            )}
+            <button
+              onClick={handleMiniKitVerify}
+              disabled={verifying}
+              className="rounded-xl bg-blue-600 px-6 py-3 font-bold text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+            >
+              {verifying ? "Verifying..." : "Verify with World ID"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <>{children}</>;
+  }
+
+  // --- Browser path: wallet connect + IDKit ---
   if (!isConnected) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-black p-8 text-white">
         <div className="w-full max-w-md space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome to BLIP</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome to BLIP
+          </h1>
           <p className="text-zinc-400">Connect your wallet to get started.</p>
           <div className="flex justify-center">
             <ConnectButton />
@@ -88,8 +150,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <IDKitWidget
             app_id={process.env.NEXT_PUBLIC_WORLD_APP_ID as `app_${string}`}
             action={process.env.NEXT_PUBLIC_WORLD_ACTION_ID!}
-            onSuccess={onSuccess}
-            handleVerify={handleVerify}
+            onSuccess={onBrowserSuccess}
+            handleVerify={handleBrowserVerify}
             verification_level={VerificationLevel.Device}
           >
             {({ open }) => (
