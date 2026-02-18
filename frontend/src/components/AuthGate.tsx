@@ -97,10 +97,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-screen flex-col items-center justify-center bg-black p-8 text-white">
           <div className="w-full max-w-md space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
             <h1 className="text-3xl font-bold tracking-tight">
-              Welcome to BLIP
+              BLIP
             </h1>
             <p className="text-zinc-400">
-              Verify with World ID to access BLIP.
+              Please verify to continue
             </p>
             {error && (
               <p className="text-sm text-red-400">{error}</p>
@@ -141,12 +141,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen flex-col items-center justify-center bg-black p-8 text-white">
         <div className="w-full max-w-md space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
           <h1 className="text-3xl font-bold tracking-tight">
-            Verify Your Identity
+            Security Check
           </h1>
           <p className="text-zinc-400 mb-2">
-            Connected Wallet: {address?.slice(0, 6)}...{address?.slice(-4)}
+            Identity verification required
           </p>
-          <p className="text-zinc-400">Verify with World ID to access BLIP.</p>
           <IDKitWidget
             app_id={process.env.NEXT_PUBLIC_WORLD_APP_ID as `app_${string}`}
             action={process.env.NEXT_PUBLIC_WORLD_ACTION_ID!}

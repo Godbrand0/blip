@@ -32,8 +32,10 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           <Providers>
-            <main className="pb-16">{children}</main>
-            <NavBar />
+            <div className="flex h-full flex-col">
+              <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+              <NavBar />
+            </div>
           </Providers>
         </body>
       </MiniKitProvider>
