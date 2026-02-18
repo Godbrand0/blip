@@ -1,8 +1,12 @@
 schemaVersion: 1.0.0
-name: blip-cre
-config:
-  attributionAgentUrl: http://localhost:8000
-targets:
-  dev:
-    rpcUrl: https://rpc.ankr.com/eth_sepolia
-    networkId: 11155111
+name: chainbridge-ai
+
+dev:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+
+default:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://rpc.ankr.com/eth_sepolia

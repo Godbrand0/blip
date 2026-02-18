@@ -6,6 +6,7 @@ import compression from "compression";
 import dotenv from "dotenv";
 import contentRoutes from "./routes/content.routes";
 import verifyRoutes from "./routes/verify.routes";
+import attributionRoutes from "./routes/attribution.routes";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/content", contentRoutes);
+app.use("/api/attribution", attributionRoutes);
 app.use("/api", verifyRoutes);
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });

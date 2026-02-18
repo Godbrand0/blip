@@ -1,0 +1,13 @@
+{
+  "intentId": "test_intent_001",
+  "user": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "amount": "50",
+  "ccipMessageId": "msg_test_001",
+  "content": "This is a test piece of original content for attribution analysis.",
+  "proof": {
+    "merkle_root": "0x1234567890abcdef",
+    "nullifier_hash": "0xabcdef1234567890",
+    "proof": "0x00000000000000000000",
+    "verification_level": "orb"
+  }
+}
