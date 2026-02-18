@@ -11,6 +11,9 @@ export const VAULT_ADDRESS =
 // Base chain selector for CCIP
 export const BASE_CHAIN_SELECTOR = "15971525489660198786";
 
+// Import full ABIs from JSON files
+import CCIPExecutionVaultABI from '../abis/CCIPExecutionVault.json';
+
 // Minimal ABIs for MiniKit sendTransaction
 export const ERC20_ABI = [
   {
@@ -25,19 +28,5 @@ export const ERC20_ABI = [
   },
 ] as const;
 
-export const VAULT_ABI = [
-  {
-    name: "createIntent",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "amount", type: "uint256" },
-      { name: "recipient", type: "address" },
-      { name: "destinationChainSelector", type: "uint64" },
-    ],
-    outputs: [
-      { name: "intentId", type: "uint256" },
-      { name: "messageId", type: "bytes32" },
-    ],
-  },
-] as const;
+// Use the full ABI from the JSON file
+export const VAULT_ABI = CCIPExecutionVaultABI;

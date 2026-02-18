@@ -141,7 +141,7 @@ export function ChatInterface() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user: MiniKit.walletAddress, // Or appropriate user address
+            user: MiniKit.user?.walletAddress, // Or appropriate user address
             amount: rawAmount,
             recipient: data.recipient,
             destinationChainSelector: BASE_CHAIN_SELECTOR,
