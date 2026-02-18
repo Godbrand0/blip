@@ -89,15 +89,23 @@ contract CCIPExecutionVault {
     // ═══════════════════════════════════════════════════════════
     
     modifier onlyAdmin() {
-        if (msg.sender != admin) revert OnlyAdmin();
+        _onlyAdmin();
         _;
+    }
+
+    function _onlyAdmin() internal view {
+        if (msg.sender != admin) revert OnlyAdmin();
     }
     
     modifier onlyVerifiedHuman() {
+        _checkVerifiedHuman();
+        _;
+    }
+
+    function _checkVerifiedHuman() internal view {
         if (!IHumanRegistry(humanRegistry).isVerified(msg.sender)) {
             revert NotVerifiedHuman();
         }
-        _;
     }
     
     // ═══════════════════════════════════════════════════════════
@@ -139,13 +147,51 @@ contract CCIPExecutionVault {
         onlyVerifiedHuman
         returns (uint256 intentId, bytes32 messageId) 
     {
+        return _executeBridge(msg.sender, amount, recipient, destinationChainSelector);
+    }
+    
+    /**
+     * @notice Delegated execution of bridge intent by CRE admin
+     * @param user The address of the user initiating the bridge
+     * @param amount USDC amount
+     * @param recipient Recipient on destination chain
+     * @param destinationChainSelector CCIP chain selector
+     */
+    function executeBridgeForUser(
+        address user,
+        uint256 amount,
+        address recipient,
+        uint64 destinationChainSelector
+    ) 
+        external 
+        onlyAdmin 
+        returns (uint256 intentId, bytes32 messageId) 
+    {
+        if (!IHumanRegistry(humanRegistry).isVerified(user)) {
+            revert NotVerifiedHuman();
+        }
+        return _executeBridge(user, amount, recipient, destinationChainSelector);
+    }
+
+    /**
+     * @dev Internal bridging logic
+     */
+    function _executeBridge(
+        address user,
+        uint256 amount,
+        address recipient,
+        uint64 destinationChainSelector
+    ) 
+        internal 
+        returns (uint256 intentId, bytes32 messageId) 
+    {
         
         // ───────────────────────────────────────────────────────
-        // STEP 1: TRANSFER USDC FROM USER
+        // STEP 1: TRANSFER USDC FROM USER (MUST BE PRE-APPROVED)
         // ───────────────────────────────────────────────────────
         
         bool success = usdcToken.transferFrom(
-            msg.sender, 
+            user, 
             address(this), 
             amount
         );
@@ -223,7 +269,7 @@ contract CCIPExecutionVault {
         intentId = intentCounter++;
         
         intents[intentId] = Intent({
-            user: msg.sender,
+            user: user,
             amount: amount,
             recipient: recipient,
             destinationChainSelector: destinationChainSelector,
@@ -233,12 +279,12 @@ contract CCIPExecutionVault {
         });
         
         // ───────────────────────────────────────────────────────
-        // STEP 8: EMIT EVENT (CRE LISTENS)
+        // STEP 8: EMIT EVENT
         // ───────────────────────────────────────────────────────
         
         emit IntentCreated(
             intentId,
-            msg.sender,
+            user,
             amount,
             recipient,
             destinationChainSelector,
@@ -281,7 +327,7 @@ contract CCIPExecutionVault {
      * @notice Fund contract with LINK for CCIP fees
      * @param amount LINK amount to deposit
      */
-    function fundLINK(uint256 amount) external {
+    function fundLink(uint256 amount) external {
         bool success = linkToken.transferFrom(msg.sender, address(this), amount);
         require(success, "LINK transfer failed");
         emit LinkFunded(msg.sender, amount, block.timestamp);

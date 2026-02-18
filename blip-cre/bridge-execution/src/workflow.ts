@@ -1,15 +1,18 @@
 import {
   HTTPCapability,
   HTTPClient,
+  EVMCapability,
+  EVMClient,
   handler,
-  type Runtime,
-  type HTTPPayload,
-  type HTTPSendRequester,
   Runner,
   decodeJson,
   ok,
   json,
   consensusIdenticalAggregation,
+  type Runtime,
+  type HTTPPayload,
+  type HTTPSendRequester,
+  type EVMSendRequester,
 } from "@chainlink/cre-sdk";
 
 // Configuration schema for the workflow
@@ -79,14 +82,36 @@ export const onHttpTrigger = async (
     runtime.log(`[ChainBridge] World ID verified successfully`);
 
     // Phase 2: On-chain Bridge Finalization
-    // In a production CRE, we would use the EVM capability to call markExecuted()
     runtime.log(`[ChainBridge] Finalizing bridge intent ${data.intentId} on World Chain...`);
+
+    const evmClient = new EVMClient();
+    
+    const executeBridge = (sendRequester: EVMSendRequester, config: Config) => {
+      return sendRequester.sendTransaction({
+        to: config.vaultAddress,
+        abi: [
+          "function executeBridgeForUser(address user, uint256 amount, address recipient, uint64 destinationChainSelector) external returns (uint256 intentId, bytes32 messageId)"
+        ],
+        functionName: "executeBridgeForUser",
+        args: [
+          data.user,
+          data.amount,
+          data.recipient,
+          "16015286601757825753" // Base Sepolia Selector (Mock/Example)
+        ],
+      }).result();
+    };
+
+    const bridgeResult = evmClient
+      .sendTransaction(runtime, executeBridge, consensusIdenticalAggregation())
+      (runtime.config)
+      .result();
 
     const result = {
       success: true,
       intentId: data.intentId,
       message: "Bridge transfer finalized and verified by CRE",
-      txHash: "0x" + "f".repeat(64), // Mock finalization hash
+      txHash: bridgeResult.hash,
     };
 
     return JSON.stringify(result);
@@ -99,6 +124,7 @@ export const onHttpTrigger = async (
 
 const initWorkflow = (config: Config) => {
   const httpTrigger = new HTTPCapability();
+  const evmCapability = new EVMCapability();
 
   return [
     handler(
@@ -112,6 +138,7 @@ const initWorkflow = (config: Config) => {
       }),
       onHttpTrigger,
     ),
+    evmCapability,
   ];
 };
 

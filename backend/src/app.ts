@@ -4,13 +4,12 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import dotenv from "dotenv";
-import contentRoutes from "./routes/content.routes";
 import verifyRoutes from "./routes/verify.routes";
-import attributionRoutes from "./routes/attribution.routes";
+import bridgeRoutes from "./routes/bridge.routes";
 
 dotenv.config();
 
-const app = express();
+const app: express.Application = express();
 const port = process.env.PORT || 3001;
 
 // Middleware
@@ -21,8 +20,7 @@ app.use(compression());
 app.use(express.json());
 
 // Routes
-app.use("/api/content", contentRoutes);
-app.use("/api/attribution", attributionRoutes);
+app.use("/api/bridge", bridgeRoutes);
 app.use("/api", verifyRoutes);
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });

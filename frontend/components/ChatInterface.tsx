@@ -119,15 +119,70 @@ export function ChatInterface() {
 
     try {
       if (isMiniKit) {
-        await executeBridgeMiniKit(data.amount, data.recipient);
+        // Step 1: User Approves USDC to Vault
+        const rawAmount = usdcToRaw(data.amount);
+        const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({
+          transaction: [
+            {
+              address: USDC_ADDRESS as `0x${string}`,
+              abi: ERC20_ABI,
+              functionName: 'approve',
+              args: [VAULT_ADDRESS, rawAmount],
+            },
+          ],
+        });
+
+        if (finalPayload.status === 'error') {
+          throw new Error('Approval cancelled');
+        }
+
+        // Step 2: Trigger Backend -> CRE -> Vault.executeBridgeForUser
+        const response = await fetch('/api/bridge/trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user: MiniKit.walletAddress, // Or appropriate user address
+            amount: rawAmount,
+            recipient: data.recipient,
+            destinationChainSelector: BASE_CHAIN_SELECTOR,
+            proof: { /* World ID proof from context/auth should go here */ }
+          })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          addIntent({
+            intentId: result.creResponse?.intentId || Date.now().toString(),
+            amount: data.amount,
+            recipient: data.recipient,
+            status: 'PENDING',
+            txHash: result.creResponse?.txHash,
+          });
+
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `Bridge triggered via AI! CRE is executing the transfer. Tx: ${result.creResponse?.txHash}`,
+            type: 'status',
+          }]);
+        } else {
+          throw new Error(result.error || 'Failed to trigger bridge');
+        }
+
       } else {
-        // Browser flow: wagmi transaction would go here
         setMessages(prev => [...prev, {
           role: 'assistant',
           content: 'Browser-based bridge execution coming soon. Open in World App for full functionality.',
           type: 'text',
         }]);
       }
+    } catch (err: any) {
+      console.error('Execution Error:', err);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Bridge failed: ${err.message}`,
+        type: 'text',
+      }]);
     } finally {
       setExecutingIntent(null);
     }

@@ -8,12 +8,11 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const ATTRIBUTION_AGENT_URL = process.env.ATTRIBUTION_AGENT_URL || 'http://localhost:8000';
-const CONFIDENCE_THRESHOLD = 0.70;
+const WORLD_ID_VERIFY_URL = process.env.WORLD_ID_VERIFY_URL || 'http://localhost:3001/api/verify';
 
 const customParams = {
-  contentId: ['contentId', 'id'],
-  worldIDProof: false, // Optional World ID proof data
+  intentId: ['intentId', 'id'],
+  worldIDProof: true,
   endpoint: false,
 };
 
@@ -31,32 +30,24 @@ app.post('/', async (req, res) => {
   if (validator.error) return res.status(400).send(validator.error);
 
   const jobRunID = req.body.id;
-  const contentId = validator.validated.data.contentId;
+  const intentId = validator.validated.data.intentId;
   const worldIDProof = validator.validated.data.worldIDProof;
-  const content = req.body.data.content; // Content text for analysis
 
   try {
-    // 1. Verify World ID proof
-    const isHuman = await verifyWorldID(worldIDProof);
+    // 1. Verify World ID proof via Blip Backend
+    const verifyRes = await axios.post(WORLD_ID_VERIFY_URL, worldIDProof);
+    const isHuman = verifyRes.data.success;
 
-    // 2. Call AI Attribution Agent
-    const aiResponse = await axios.post(`${ATTRIBUTION_AGENT_URL}/analyze`, {
-      content: content
-    });
-
-    const { confidence, attributed_sources, similarity_score } = aiResponse.data;
-
-    // 3. Evaluate results
-    const isValidated = confidence >= CONFIDENCE_THRESHOLD;
+    // 2. Mock Bridge validation (Phase 3 in workflow)
+    const isValidated = isHuman;
 
     const result = {
       jobRunID,
       data: {
         result: isValidated,
-        contentId: contentId,
+        intentId: intentId,
         isHuman: isHuman,
-        attribution: attributed_sources,
-        similarity: similarity_score
+        status: isValidated ? 'validated' : 'failed'
       },
       statusCode: 200
     };
