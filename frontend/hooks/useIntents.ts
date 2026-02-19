@@ -48,7 +48,7 @@ export function useIntents() {
     // Dynamically import the websocket module to avoid SSR issues
     const initSocket = async () => {
       try {
-        const { getSocket } = await import("../lib/websocket");
+        const { getSocket } = await import("@/lib/websocket");
         socket = getSocket();
 
         // Don't set up listeners if socket is null (SSR case)
