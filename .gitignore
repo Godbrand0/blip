@@ -75,7 +75,7 @@ tmp/
 temp/
 
 # Foundry/Hardhat (Solidity)
-lib/
+
 cache/
 out/
 
