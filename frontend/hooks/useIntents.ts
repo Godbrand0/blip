@@ -3,6 +3,7 @@
 
 import { create } from "zustand";
 import { useEffect } from "react";
+import { getSocket } from "@/lib/websocket";
 
 interface Intent {
   intentId?: string;
@@ -43,53 +44,39 @@ export function useIntents() {
   const { intents, addIntent, updateIntent } = useIntentStore();
 
   useEffect(() => {
-    let socket: any = null;
+    const socket = getSocket();
 
-    // Dynamically import the websocket module to avoid SSR issues
-    const initSocket = async () => {
-      try {
-        const { getSocket } = await import("@/lib/websocket");
-        socket = getSocket();
+    // Don't set up listeners if socket is null (SSR case)
+    if (!socket) return;
 
-        // Don't set up listeners if socket is null (SSR case)
-        if (!socket) return;
+    // Listen for intent updates
+    socket.on("intent-pending", (data) => {
+      updateIntent(data.intentId, {
+        status: "PENDING",
+        ccipMessageId: data.ccipMessageId,
+        ccipExplorerUrl: data.ccipExplorerUrl,
+      });
+    });
 
-        // Listen for intent updates
-        socket.on("intent-pending", (data: any) => {
-          updateIntent(data.intentId, {
-            status: "PENDING",
-            ccipMessageId: data.ccipMessageId,
-            ccipExplorerUrl: data.ccipExplorerUrl,
-          });
-        });
+    socket.on("intent-completed", (data) => {
+      updateIntent(data.intentId, {
+        status: "COMPLETED",
+        baseTxHash: data.baseTxHash,
+        basescanUrl: data.basescanUrl,
+      });
+    });
 
-        socket.on("intent-completed", (data: any) => {
-          updateIntent(data.intentId, {
-            status: "COMPLETED",
-            baseTxHash: data.baseTxHash,
-            basescanUrl: data.basescanUrl,
-          });
-        });
-
-        socket.on("intent-failed", (data: any) => {
-          updateIntent(data.intentId, {
-            status: "FAILED",
-            error: data.error,
-          });
-        });
-      } catch (error) {
-        console.error("Failed to initialize websocket:", error);
-      }
-    };
-
-    initSocket();
+    socket.on("intent-failed", (data) => {
+      updateIntent(data.intentId, {
+        status: "FAILED",
+        error: data.error,
+      });
+    });
 
     return () => {
-      if (socket) {
-        socket.off("intent-pending");
-        socket.off("intent-completed");
-        socket.off("intent-failed");
-      }
+      socket.off("intent-pending");
+      socket.off("intent-completed");
+      socket.off("intent-failed");
     };
   }, [updateIntent]);
 
