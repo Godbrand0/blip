@@ -1,13 +1,24 @@
 # ChainBridge AI: CRE Workflow Guide
 
-This guide explains how to manage and run the decentralized Bridge Execution workflows using the Docker-wrapped CRE CLI.
+This guide explains how to manage and run the decentralized Bridge Execution workflows using the `cre` CLI.
 
 ## 🛠 Prerequisites
 
-Ensure you have Docker installed and the `cre-docker/run.sh` script is executable:
+Ensure you have the following installed locally:
+
+- **cre CLI**: For managing and simulating workflows.
+- **Bun**: Required for running TypeScript workflows locally.
+
+Check versions with:
 
 ```bash
-chmod +x cre-docker/run.sh
+cre version
+bun --version
+```
+
+If you don't have Bun, install it via:
+```bash
+curl -fsSL https://bun.sh/install | bash
 ```
 
 ## 🔐 Authentication
@@ -15,7 +26,7 @@ chmod +x cre-docker/run.sh
 To connect your local environment to your Chainlink CRE account:
 
 ```bash
-./cre-docker/run.sh login
+cre login
 ```
 *This will open a browser window for authentication.*
 
@@ -30,7 +41,7 @@ To test the Bridge Execution workflow locally:
 
 2. **Run simulation**:
    ```bash
-   ../cre-docker/run.sh workflow simulate ./bridge-execution --target dev -R .
+   cre workflow simulate ./bridge-execution --target dev -R .
    ```
 
 ## 🌐 Dashboard & Deployment
@@ -40,7 +51,7 @@ Not exactly. Once you are happy with the simulation, you **deploy** it from the 
 
 1. **Deploy the workflow**:
    ```bash
-   ../cre-docker/run.sh workflow deploy ./bridge-execution --target dev
+   cre workflow deploy ./bridge-execution --target dev
    ```
 2. **Visit the Dashboard**: After deployment, the workflow will appear on [cre.chain.link](https://cre.chain.link).
 3. **Manage on Website**: You'll use the website to:

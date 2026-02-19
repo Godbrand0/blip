@@ -1,0 +1,6 @@
+{
+  "authorizedEVMAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "vaultAddress": "0x4ed7c0b69591322C0C38fE29f8f4E08B539Cc699",
+  "worldIdVerifyUrl": "http://localhost:4000/api/verify",
+  "chainSelectorName": "ethereum-testnet-sepolia"
+}

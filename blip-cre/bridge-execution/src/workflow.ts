@@ -27,6 +27,7 @@ type BridgeExecutionPayload = {
   intentId: string;
   user: string;
   amount: string;
+  recipient: string;
   ccipMessageId: string;
   proof: any; // World ID Proof
 };

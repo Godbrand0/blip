@@ -264,6 +264,10 @@ ETHEREUM_RPC_URL=http://localhost:8545
 
 ## Quick Start Script
 
+#### Development Tools (Global)
+- **cre CLI**: `npm install -g @smartcontractkit/cre-cli` (or manual download)
+- **Bun**: `curl -fsSL https://bun.sh/install | bash` (Required for local CRE simulation)
+
 Create a `setup.sh` script in the root directory:
 
 ```bash
@@ -320,17 +324,6 @@ chmod +x setup.sh
 - npm: >= 8.0.0
 - Hardhat: >= 2.0.0
 - Next.js: >= 13.0.0
-
-## Additional Setup
-
-### Docker (Optional)
-
-If you prefer containerized development:
-
-```bash
-# Install Docker and Docker Compose
-# Then create docker-compose.yml for each component
-```
 
 ### Local Blockchain
 
