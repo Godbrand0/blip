@@ -6,7 +6,8 @@ import { Wallet, History, ArrowRightLeft, Sparkles, TrendingUp, Link as LinkIcon
 import { AuthGate } from "@/src/components/AuthGate";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { motion } from "framer-motion";
-import { useBalance } from "wagmi";
+import { useReadContract } from "wagmi";
+import { formatUnits, erc20Abi } from "viem";
 
 // USDC contract address on World Chain
 const USDC_ADDRESS = "0x79A02482A880bCE3F13e09Da470d9a69E8CAce0A";
@@ -15,16 +16,18 @@ export default function HomePage() {
   const { walletAddress } = useAuth();
   const { intents } = useIntents();
 
-  const { data: balanceData } = useBalance({
-    address: walletAddress as `0x${string}`,
-    token: USDC_ADDRESS,
+  const { data: balanceData } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: walletAddress ? [walletAddress as `0x${string}`] : undefined,
     query: {
       enabled: !!walletAddress,
       refetchInterval: 10000, // Refresh every 10 seconds
     }
   });
 
-  const rawBalance = balanceData?.formatted ? parseFloat(balanceData.formatted) : 0;
+  const rawBalance = balanceData ? parseFloat(formatUnits(balanceData as bigint, 6)) : 0;
   const formattedBalance = isNaN(rawBalance)
     ? "0.00"
     : rawBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
