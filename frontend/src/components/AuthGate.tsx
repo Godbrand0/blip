@@ -115,7 +115,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!isWorldIdVerified) {
       return (
         <OnboardingLayout 
-          title="Chain Bridge" 
+          title="Blip" 
           subtitle="Verify your humanness to start bridging assets."
         >
           <div className="w-full space-y-4">
@@ -132,13 +132,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         </OnboardingLayout>
       );
     }
+    // If MiniKit is installed and verified, bypass the wagmi connection check
     return <>{children}</>;
   }
 
   if (!isConnected) {
     return (
       <OnboardingLayout 
-        title="Welcome" 
+        title="Blip" 
         subtitle="Connect your wallet to enter the bridge ecosystem."
       >
         <div className="flex justify-center w-full">
