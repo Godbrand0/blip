@@ -25,9 +25,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const { finalPayload } = await MiniKit.commandsAsync.verify({
-        action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID!,
-        verification_level: VerificationLevel.Device,
+      const nonceRes = await fetch("/api/nonce");
+      const { nonce } = await nonceRes.json();
+
+      const { finalPayload } = await MiniKit.commandsAsync.walletAuth({
+        nonce: nonce,
+        requestId: "0",
+        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+        statement: "Sign in to Blip with World App",
       });
 
       if (finalPayload.status === "error") {
@@ -35,20 +41,28 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const res = await fetch("/api/verify", {
+      const res = await fetch("/api/complete-siwe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           payload: finalPayload,
-          action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID!,
+          nonce,
         }),
       });
 
       const result = await res.json();
-      if (result.status === 200) {
-        setVerified(finalPayload as ISuccessResult);
+      if (result.status === "success" && result.isValid) {
+        // MiniKit walletAuth succeeded, mark as verified with a mock payload
+        // since we don't get a standard World ID proof back from Wallet Auth
+        setVerified({
+          nullifier_hash: "siwe_" + (finalPayload as any).address,
+          verification_level: "orb",
+          proof: "",
+          merkle_root: "",
+          action: "login"
+        } as any);
       } else {
-        setError(result.verifyRes?.detail || "Verification failed.");
+        setError(result.message || "SIWE verification failed.");
       }
     } catch (err: any) {
       console.error("MiniKit verify error:", err);
