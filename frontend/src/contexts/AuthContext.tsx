@@ -17,7 +17,7 @@ interface AuthContextType {
   worldIdProof: ISuccessResult | null;
   walletAddress: string | null;
   isMiniKit: boolean;
-  setVerified: (proof: ISuccessResult) => void;
+  setVerified: (proof: ISuccessResult, walletAddress?: string) => void;
   clearAuth: () => void;
 }
 
@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   worldIdProof: null,
   walletAddress: null,
   isMiniKit: false,
-  setVerified: () => {},
+  setVerified: (_proof, _addr) => {},
   clearAuth: () => {},
 });
 

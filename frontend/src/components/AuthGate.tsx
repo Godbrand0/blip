@@ -52,15 +52,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
       const result = await res.json();
       if (result.status === "success" && result.isValid) {
-        // MiniKit walletAuth succeeded, mark as verified with a mock payload
-        // since we don't get a standard World ID proof back from Wallet Auth
+        const signerAddress = (finalPayload as any).address as string;
         setVerified({
-          nullifier_hash: "siwe_" + (finalPayload as any).address,
+          nullifier_hash: "siwe_" + signerAddress,
           verification_level: "orb",
           proof: "",
           merkle_root: "",
           action: "login"
-        } as any);
+        } as any, signerAddress); // <-- pass address so walletAddress is updated
       } else {
         setError(result.message || "SIWE verification failed.");
       }
