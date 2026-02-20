@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BLIP - Decentralized Content Licensing",
-  description: "Secure your IP and start earning royalties globally with BLIP's decentralized content licensing platform.",
+  title: "Blip - Cross-Chain Intents",
+  description: "Seamlessly bridge assets across chains with Blip's decentralized intent execution platform.",
 };
 
 export default function RootLayout({
@@ -29,13 +29,11 @@ export default function RootLayout({
     <html lang="en">
       <MiniKitProvider>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen pb-20`}
         >
           <Providers>
-            <div className="flex h-full flex-col">
-              <main className="flex-1 overflow-y-auto pb-20">{children}</main>
-              <NavBar />
-            </div>
+            {children}
+            <NavBar />
           </Providers>
         </body>
       </MiniKitProvider>
