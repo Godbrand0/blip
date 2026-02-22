@@ -6,6 +6,8 @@ import { Send, Bot, User, Loader2, Link as LinkIcon, ExternalLink, CheckCircle, 
 import { useIntents } from '@/hooks/useIntents';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { usePublicClient } from 'wagmi';
+import { formatEther } from 'viem';
 import {
   USDC_ADDRESS,
   VAULT_ADDRESS,
@@ -27,6 +29,7 @@ function usdcToRaw(amount: number): string {
 
 export function ChatInterface() {
   const { isMiniKit, walletAddress } = useAuth();
+  const publicClient = usePublicClient();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -138,11 +141,32 @@ export function ChatInterface() {
 
       if (aiData.action === 'send') {
         const recipientDisplay = aiData.recipient === 'self' ? 'your wallet' : aiData.recipient;
+        let gasEstimateDisplay = '~';
+
+        if (publicClient && walletAddress) {
+          try {
+            const rawAmount = usdcToRaw(aiData.amount);
+            const gasLimit = await publicClient.estimateContractGas({
+              address: USDC_ADDRESS as `0x${string}`,
+              abi: ERC20_ABI,
+              functionName: 'approve',
+              args: [VAULT_ADDRESS as `0x${string}`, BigInt(rawAmount)],
+              account: walletAddress as `0x${string}`,
+            });
+            const gasPrice = await publicClient.getGasPrice();
+            const gasCost = gasLimit * gasPrice;
+            gasEstimateDisplay = `~${parseFloat(formatEther(gasCost)).toFixed(6)} ETH`;
+          } catch (e) {
+            console.error('Failed to estimate gas', e);
+            gasEstimateDisplay = 'Unknown';
+          }
+        }
+
         const confirmMessage: Message = {
           role: 'assistant',
           content: `Confirm bridge: ${aiData.amount} USDC to ${recipientDisplay} on Base.`,
           type: 'intent',
-          data: aiData
+          data: { ...aiData, estimatedGas: gasEstimateDisplay }
         };
         setMessages(prev => [...prev, confirmMessage]);
       } else {
@@ -254,6 +278,13 @@ export function ChatInterface() {
                               <p className="text-xs font-bold text-zinc-300">Base</p>
                             </div>
                           </div>
+
+                          {msg.data.estimatedGas && (
+                            <div className="flex items-center justify-between text-xs pt-2 border-t border-indigo-500/10">
+                              <span className="text-zinc-500 font-bold uppercase">Est. Gas</span>
+                              <span className="font-mono text-indigo-300">{msg.data.estimatedGas}</span>
+                            </div>
+                          )}
 
                           <button
                             onClick={() => handleExecuteBridge(msg.data)}
