@@ -128,7 +128,7 @@ export const onHttpTrigger = async (
         data.user as Address,
         BigInt(data.amount),
         data.recipient as Address,
-        16015286601757825753n // Base Sepolia Selector (Mock/Example) as BigInt
+        10344971235874465080n // Base Sepolia Selector as BigInt
       ],
     });
 
