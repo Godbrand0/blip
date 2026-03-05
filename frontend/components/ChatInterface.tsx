@@ -6,14 +6,14 @@ import { Send, Bot, User, Loader2, Link as LinkIcon, ExternalLink, CheckCircle, 
 import { useIntents } from '@/hooks/useIntents';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { usePublicClient } from 'wagmi';
-import { formatEther } from 'viem';
+import { usePublicClient, useWriteContract } from 'wagmi';
+import { formatEther, parseUnits } from 'viem';
 import {
   USDC_ADDRESS,
-  VAULT_ADDRESS,
-  BASE_CHAIN_SELECTOR,
+  TOKEN_MESSENGER_ADDRESS,
+  TOKEN_MESSENGER_ABI,
+  BASE_SEPOLIA_DOMAIN,
   ERC20_ABI,
-  VAULT_ABI,
 } from '@/src/config/contracts';
 
 interface Message {
@@ -30,21 +30,51 @@ function usdcToRaw(amount: number): string {
 export function ChatInterface() {
   const { isMiniKit, walletAddress } = useAuth();
   const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'I am your ChainBridge AI. How can I help you bridge assets today?',
-      type: 'text'
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  // Load messages from localStorage on mount/wallet change
+  useEffect(() => {
+    if (!walletAddress) {
+      setMessages([{
+        role: 'assistant',
+        content: 'I am your ChainBridge AI. How can I help you bridge assets today?',
+        type: 'text'
+      }]);
+      return;
     }
-  ]);
+
+    const saved = localStorage.getItem(`blip-chat-${walletAddress}`);
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse saved messages", e);
+      }
+    } else {
+      setMessages([{
+        role: 'assistant',
+        content: 'I am your ChainBridge AI. How can I help you bridge assets today?',
+        type: 'text'
+      }]);
+    }
+  }, [walletAddress]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (walletAddress && messages.length > 0) {
+      localStorage.setItem(`blip-chat-${walletAddress}`, JSON.stringify(messages));
+    }
+  }, [messages, walletAddress]);
 
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [executingIntent, setExecutingIntent] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { intents, addIntent } = useIntents();
+  const { intents, addIntent } = useIntents(walletAddress || undefined);
+  const { isWorldIdVerified, worldIdProof } = useAuth(); // Destructure proof
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,6 +89,10 @@ export function ChatInterface() {
     setExecutingIntent(key);
 
     try {
+      if (!isWorldIdVerified || !worldIdProof) {
+        throw new Error("World ID verification required.");
+      }
+
       // Logic for "self" recipient
       const finalRecipient = data.recipient === 'self' ? walletAddress : data.recipient;
       
@@ -66,27 +100,54 @@ export function ChatInterface() {
 
       if (isMiniKit) {
         const rawAmount = usdcToRaw(data.amount);
-        const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({
+        const recipientBytes32 = `0x${finalRecipient.slice(2).padStart(64, '0')}` as `0x${string}`;
+        const zeroBytes32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
+
+        const approveRes = await MiniKit.commandsAsync.sendTransaction({
           transaction: [
             {
               address: USDC_ADDRESS as `0x${string}`,
               abi: ERC20_ABI,
               functionName: 'approve',
-              args: [VAULT_ADDRESS, rawAmount],
+              args: [TOKEN_MESSENGER_ADDRESS, rawAmount],
             },
           ],
         });
 
-        if (finalPayload.status === 'error') throw new Error('Approval cancelled');
+        if (approveRes.finalPayload.status === 'error') throw new Error('Approval cancelled');
 
-        const response = await fetch('/api/bridge/trigger', {
+        const burnRes = await MiniKit.commandsAsync.sendTransaction({
+          transaction: [
+            {
+              address: TOKEN_MESSENGER_ADDRESS as `0x${string}`,
+              abi: TOKEN_MESSENGER_ABI,
+              functionName: 'depositForBurn',
+              args: [
+                BigInt(rawAmount),
+                BASE_SEPOLIA_DOMAIN,
+                recipientBytes32,
+                USDC_ADDRESS as `0x${string}`,
+                zeroBytes32,
+                BigInt(0),
+                0,
+              ],
+            },
+          ],
+        });
+
+        if (burnRes.finalPayload.status === 'error') throw new Error('Bridge transaction failed');
+
+        const txHash = burnRes.finalPayload.transaction_id;
+
+        const response = await fetch('/api/bridge/relay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            txHash,
             user: walletAddress,
             amount: rawAmount,
             recipient: finalRecipient,
-            destinationChainSelector: BASE_CHAIN_SELECTOR,
+            proof: worldIdProof,
           })
         });
 
@@ -98,16 +159,85 @@ export function ChatInterface() {
             amount: data.amount,
             recipient: finalRecipient,
             status: 'PENDING',
-            txHash: result.creResponse?.txHash,
+            burnTxHash: txHash,
           });
 
           setMessages(prev => [...prev, {
             role: 'assistant',
-            content: `Bridge triggered! CRE is executing the transfer to ${finalRecipient === walletAddress ? 'your wallet' : finalRecipient}.`,
+            content: `Bridge triggered! Your ${data.amount} USDC is being bridged to ${finalRecipient === walletAddress ? 'your wallet' : finalRecipient} on Base.`,
             type: 'status',
           }]);
         } else {
-          throw new Error(result.error || 'Failed to trigger bridge');
+          throw new Error(result.error || 'Failed to relay bridge');
+        }
+      } else {
+        // Standard Wagmi Flow
+        const rawAmount = usdcToRaw(data.amount);
+        const recipientBytes32 = `0x${finalRecipient.slice(2).padStart(64, '0')}` as `0x${string}`;
+        const zeroBytes32 = '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`;
+        
+        const approveHash = await writeContractAsync({
+          address: USDC_ADDRESS as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [TOKEN_MESSENGER_ADDRESS as `0x${string}`, BigInt(rawAmount)],
+        });
+
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        }
+
+        const burnHash = await writeContractAsync({
+          address: TOKEN_MESSENGER_ADDRESS as `0x${string}`,
+          abi: TOKEN_MESSENGER_ABI,
+          functionName: 'depositForBurn',
+          args: [
+            BigInt(rawAmount),
+            BASE_SEPOLIA_DOMAIN,
+            recipientBytes32,
+            USDC_ADDRESS as `0x${string}`,
+            zeroBytes32,
+            BigInt(0),
+            0,
+          ],
+          gas: BigInt(500000),
+        });
+
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash: burnHash });
+        }
+
+        const response = await fetch('/api/bridge/relay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            txHash: burnHash,
+            user: walletAddress,
+            amount: rawAmount,
+            recipient: finalRecipient,
+            proof: worldIdProof,
+          })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          addIntent({
+            intentId: result.creResponse?.intentId || Date.now().toString(),
+            amount: data.amount,
+            recipient: finalRecipient,
+            status: 'PENDING',
+            burnTxHash: burnHash,
+          });
+
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `Transaction sent! Once confirmed on World Chain, your ${data.amount} USDC will be bridged to Base.`,
+            type: 'status',
+            data: { txHash: burnHash }
+          }]);
+        } else {
+          throw new Error(result.error || 'Backend failed to relay bridge intent');
         }
       }
     } catch (err: any) {
@@ -150,12 +280,21 @@ export function ChatInterface() {
               address: USDC_ADDRESS as `0x${string}`,
               abi: ERC20_ABI,
               functionName: 'approve',
-              args: [VAULT_ADDRESS as `0x${string}`, BigInt(rawAmount)],
+              args: [TOKEN_MESSENGER_ADDRESS as `0x${string}`, BigInt(rawAmount)],
               account: walletAddress as `0x${string}`,
-            });
+            }).catch(() => BigInt(65000)); // Fallback if estimation fails (common for 0 balance)
+
             const gasPrice = await publicClient.getGasPrice();
             const gasCost = gasLimit * gasPrice;
-            gasEstimateDisplay = `~${parseFloat(formatEther(gasCost)).toFixed(6)} ETH`;
+            const ethValue = parseFloat(formatEther(gasCost));
+            
+            if (ethValue === 0) {
+              gasEstimateDisplay = "Very Low";
+            } else if (ethValue < 0.000001) {
+              gasEstimateDisplay = "< 0.000001 ETH";
+            } else {
+              gasEstimateDisplay = `~${ethValue.toFixed(8)} ETH`;
+            }
           } catch (e) {
             console.error('Failed to estimate gas', e);
             gasEstimateDisplay = 'Unknown';
@@ -249,6 +388,18 @@ export function ChatInterface() {
                           : 'bg-glass-hover text-zinc-300 rounded-tl-none border border-glass-border'
                       }`}>
                         {msg.content}
+                        {msg.data?.txHash && (
+                          <div className="mt-2 pt-2 border-t border-glass-border flex justify-end">
+                            <a 
+                              href={`https://worldchain-sepolia.explorer.alchemy.com/tx/${msg.data.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                            >
+                              View Transaction <ExternalLink size={10} />
+                            </a>
+                          </div>
+                        )}
                       </div>
 
                       {msg.type === 'intent' && (

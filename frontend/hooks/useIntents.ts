@@ -3,44 +3,78 @@
 import { create } from "zustand";
 import { useEffect } from "react";
 import { getSocket } from "@/lib/websocket";
+import { useReadContract } from "wagmi";
+import { formatUnits } from "viem";
+import { TRANSACTION_RECORDER_ADDRESS, TRANSACTION_RECORDER_ABI } from "@/src/config/contracts";
+import { worldchainSepolia } from "@/wagmi-config";
 
 interface Intent {
   intentId?: string;
   amount: number;
   recipient: string;
-  status: "PENDING" | "COMPLETED" | "FAILED";
-  txHash?: string;
-  ccipMessageId?: string;
+  status: "PENDING" | "RELAYING" | "COMPLETED" | "FAILED";
+  burnTxHash?: string;
+  messageHash?: string;
   baseTxHash?: string;
-  ccipExplorerUrl?: string;
   basescanUrl?: string;
   error?: string;
 }
+
+import { persist } from "zustand/middleware";
 
 interface IntentStore {
   intents: Intent[];
   addIntent: (intent: Intent) => void;
   updateIntent: (intentId: string, updates: Partial<Intent>) => void;
+  setIntents: (intents: Intent[]) => void;
 }
 
-export const useIntentStore = create<IntentStore>((set) => ({
-  intents: [],
+export const useIntentStore = create<IntentStore>()(
+  persist(
+    (set) => ({
+      intents: [],
 
-  addIntent: (intent) =>
-    set((state) => ({
-      intents: [intent, ...state.intents],
-    })),
+      addIntent: (intent) =>
+        set((state) => ({
+          intents: [intent, ...state.intents],
+        })),
 
-  updateIntent: (intentId, updates) =>
-    set((state) => ({
-      intents: state.intents.map((intent) =>
-        intent.intentId === intentId ? { ...intent, ...updates } : intent,
-      ),
-    })),
-}));
+      updateIntent: (intentId, updates) =>
+        set((state) => ({
+          intents: state.intents.map((intent) =>
+            intent.intentId === intentId ? { ...intent, ...updates } : intent,
+          ),
+        })),
 
-export function useIntents() {
-  const { intents, addIntent, updateIntent } = useIntentStore();
+      setIntents: (intents) => set({ intents }),
+    }),
+    {
+      name: "blip-intents-storage",
+    }
+  )
+);
+
+export function useIntents(walletAddress?: string | null) {
+  const { intents, addIntent, updateIntent, setIntents } = useIntentStore();
+
+  useEffect(() => {
+    if (!walletAddress) return;
+
+    const fetchIntents = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/intents/user/${walletAddress}`);
+        if (response.ok) {
+          const data = await response.json();
+          // Filter out any duplicates if necessary or just replace
+          setIntents(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch intents:", error);
+      }
+    };
+
+    fetchIntents();
+  }, [walletAddress, setIntents]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -49,11 +83,10 @@ export function useIntents() {
     if (!socket) return;
 
     // Listen for intent updates
-    socket.on("intent-pending", (data) => {
+    socket.on("intent-relaying", (data) => {
       updateIntent(data.intentId, {
-        status: "PENDING",
-        ccipMessageId: data.ccipMessageId,
-        ccipExplorerUrl: data.ccipExplorerUrl,
+        status: "RELAYING",
+        messageHash: data.messageHash,
       });
     });
 
@@ -61,7 +94,7 @@ export function useIntents() {
       updateIntent(data.intentId, {
         status: "COMPLETED",
         baseTxHash: data.baseTxHash,
-        basescanUrl: data.basescanUrl,
+        basescanUrl: `https://sepolia.basescan.org/tx/${data.baseTxHash}`,
       });
     });
 
@@ -73,11 +106,65 @@ export function useIntents() {
     });
 
     return () => {
-      socket.off("intent-pending");
+      socket.off("intent-relaying");
       socket.off("intent-completed");
       socket.off("intent-failed");
     };
   }, [updateIntent]);
 
   return { intents, addIntent, updateIntent };
+}
+
+// ── On-chain history from BlipHistory.sol ─────────────────────────────────
+
+const STATUS_MAP: Record<number, Intent["status"]> = {
+  0: "PENDING",
+  1: "RELAYING",
+  2: "COMPLETED",
+  3: "FAILED",
+};
+
+export interface OnChainRecord {
+  id: bigint;
+  user: string;
+  amount: number;
+  recipient: string;
+  sourceTxHash: string;
+  destTxHash: string;
+  status: Intent["status"];
+  createdAt: Date;
+  completedAt: Date | null;
+}
+
+export function useOnChainHistory(walletAddress?: string | null) {
+  const { data, isLoading, error, refetch } = useReadContract({
+    address: TRANSACTION_RECORDER_ADDRESS as `0x${string}`,
+    abi: TRANSACTION_RECORDER_ABI,
+    functionName: "getUserTransactions",
+    args: walletAddress ? [walletAddress as `0x${string}`] : undefined,
+    chainId: worldchainSepolia.id,
+    query: {
+      enabled: !!walletAddress && !!TRANSACTION_RECORDER_ADDRESS,
+      refetchInterval: 15000,
+      staleTime: 10000,
+    },
+  });
+
+  const records: OnChainRecord[] = data
+    ? (data as any[])
+        .map((r) => ({
+          id:           r.id as bigint,
+          user:         r.user as string,
+          amount:       parseFloat(formatUnits(r.amount as bigint, 6)),
+          recipient:    r.recipient as string,
+          sourceTxHash: r.sourceTxHash as string,
+          destTxHash:   r.destTxHash as string,
+          status:       STATUS_MAP[Number(r.status)] ?? "PENDING",
+          createdAt:    new Date(Number(r.createdAt) * 1000),
+          completedAt:  Number(r.completedAt) > 0 ? new Date(Number(r.completedAt) * 1000) : null,
+        }))
+        .reverse()
+    : [];
+
+  return { records, isLoading, error, refetch };
 }

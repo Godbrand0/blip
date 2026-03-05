@@ -39,16 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Detect MiniKit environment robustly
   useEffect(() => {
-    if (MiniKit.isInstalled()) {
-      setIsMiniKit(true);
-      return;
-    }
-
-    const checkInterval = setInterval(() => {
+    try {
       if (MiniKit.isInstalled()) {
         setIsMiniKit(true);
-        clearInterval(checkInterval);
+        return;
       }
+    } catch {}
+
+    const checkInterval = setInterval(() => {
+      try {
+        if (MiniKit.isInstalled()) {
+          setIsMiniKit(true);
+          clearInterval(checkInterval);
+        }
+      } catch {}
     }, 200);
 
     const timeout = setTimeout(() => clearInterval(checkInterval), 3000);
@@ -109,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionStorage.removeItem("blip_wallet_address");
       }
     }
-  }, [address, isMiniKit]);
+  }, [address, isMiniKit, walletAddress]);
 
   const setVerified = useCallback(
     (proof: ISuccessResult, newWalletAddress?: string) => {

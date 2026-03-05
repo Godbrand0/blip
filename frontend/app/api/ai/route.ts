@@ -34,7 +34,7 @@ Rules:
 If you cannot parse the intent or amount, set action to 'unknown'.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash',
       contents: message,
       config: {
         systemInstruction: systemInstruction,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
@@ -12,12 +12,93 @@ import { MiniKit } from "@worldcoin/minikit-js";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { Bot, ShieldCheck, UserCheck, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useReadContract } from "wagmi";
+import { HUMAN_REGISTRY_ADDRESS, HUMAN_REGISTRY_ABI } from "@/src/config/contracts";
+import { worldchainSepolia } from "@/wagmi-config";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { isWorldIdVerified, isMiniKit, setVerified } = useAuth();
   const [verifying, setVerifying] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Primary Check: On-chain Verification (Instant Redirect)
+  const { data: isVerifiedOnChain, isLoading: isLoadingOnChain } = useReadContract({
+    address: HUMAN_REGISTRY_ADDRESS as `0x${string}`,
+    abi: HUMAN_REGISTRY_ABI,
+    functionName: "isVerified",
+    args: address ? [address as `0x${string}`] : undefined,
+    chainId: worldchainSepolia.id,
+    query: {
+      enabled: mounted && isConnected && !!address && !isWorldIdVerified,
+    }
+  });
+
+  useEffect(() => {
+    if (isVerifiedOnChain && !isWorldIdVerified && address) {
+      console.log("On-chain verification found, auto-verifying session.");
+      setVerified({
+        nullifier_hash: "onchain_" + address,
+        verification_level: "orb", // Assume orb for registry
+        proof: "",
+        merkle_root: "",
+        action: "onchain_sync"
+      } as any, address);
+      setCheckingStatus(false);
+    }
+  }, [isVerifiedOnChain, isWorldIdVerified, address, setVerified]);
+
+  // Secondary Check: Backend Sync
+  useEffect(() => {
+    if (mounted && isConnected && address && !isWorldIdVerified) {
+      console.log("Checking backend verification status for:", address);
+      const checkStatus = async () => {
+        try {
+          const res = await fetch(`/api/verify/${address}`);
+          if (!res.ok) {
+            setCheckingStatus(false);
+            return;
+          }
+          const result = await res.json();
+          if (result.success && result.verified) {
+            console.log("User already verified according to backend.");
+            setVerified({} as any, address);
+          }
+        } catch (err) {
+          console.error("Failed to re-check verification status via backend:", err);
+        } finally {
+          setCheckingStatus(false);
+        }
+      };
+      checkStatus();
+    } else if (mounted && isWorldIdVerified) {
+      setCheckingStatus(false);
+    } else if (mounted && !isConnected) {
+      setCheckingStatus(false);
+    }
+  }, [mounted, isConnected, address, isWorldIdVerified, setVerified]);
+
+  if (!mounted) return null; // Prevent hydration mismatch
+
+  // Show generic loading while checking verification status
+  if (checkingStatus && isConnected && !isWorldIdVerified) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 size={40} className="text-indigo-500 animate-spin" />
+          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest animate-pulse">
+            Verifying Identity...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleMiniKitVerify = async () => {
     if (!MiniKit.isInstalled()) return;
@@ -25,15 +106,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const nonceRes = await fetch("/api/nonce");
-      const { nonce } = await nonceRes.json();
+      const action = process.env.NEXT_PUBLIC_WORLD_ACTION_ID!;
 
-      const { finalPayload } = await MiniKit.commandsAsync.walletAuth({
-        nonce: nonce,
-        requestId: "0",
-        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
-        statement: "Sign in to Blip with World App",
+      console.log("Triggering MiniKit verification for action:", action);
+
+      const { finalPayload } = await MiniKit.commandsAsync.verify({
+        action: action,
+        verification_level: VerificationLevel.Device,
       });
 
       if (finalPayload.status === "error") {
@@ -41,27 +120,17 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const res = await fetch("/api/complete-siwe", {
+      const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          payload: finalPayload,
-          nonce,
-        }),
+        body: JSON.stringify({ payload: finalPayload, address }),
       });
 
       const result = await res.json();
-      if (result.status === "success" && result.isValid) {
-        const signerAddress = (finalPayload as any).address as string;
-        setVerified({
-          nullifier_hash: "siwe_" + signerAddress,
-          verification_level: "orb",
-          proof: "",
-          merkle_root: "",
-          action: "login"
-        } as any, signerAddress); // <-- pass address so walletAddress is updated
+      if (result.success) {
+        setVerified(finalPayload as any, address || undefined);
       } else {
-        setError(result.message || "SIWE verification failed.");
+        setError(result.error || "Verification failed.");
       }
     } catch (err: any) {
       console.error("MiniKit verify error:", err);
@@ -76,7 +145,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(proof),
+        body: JSON.stringify({ ...proof, address }),
       });
 
       const result = await res.json();

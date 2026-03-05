@@ -63,7 +63,7 @@ function Profile() {
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">Nullifier Hash:</span>
-                <span className="truncate w-48 text-right">{worldIdProof.nullifier_hash.slice(0, 10)}...{worldIdProof.nullifier_hash.slice(-6)}</span>
+                <span className="truncate w-48 text-right">{worldIdProof.nullifier_hash ? `${worldIdProof.nullifier_hash.slice(0, 10)}...${worldIdProof.nullifier_hash.slice(-6)}` : 'N/A'}</span>
               </div>
             </div>
           )}

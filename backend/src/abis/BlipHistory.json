@@ -1,0 +1,142 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      { "name": "_owner", "type": "address", "internalType": "address" },
+      { "name": "_relayer", "type": "address", "internalType": "address" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getRecord",
+    "inputs": [{ "name": "recordId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct BlipHistory.BridgeRecord",
+        "components": [
+          { "name": "recordId", "type": "uint256", "internalType": "uint256" },
+          { "name": "user", "type": "address", "internalType": "address" },
+          { "name": "amount", "type": "uint256", "internalType": "uint256" },
+          { "name": "recipient", "type": "address", "internalType": "address" },
+          { "name": "destinationDomain", "type": "uint32", "internalType": "uint32" },
+          { "name": "burnTxHash", "type": "bytes32", "internalType": "bytes32" },
+          { "name": "relayTxHash", "type": "bytes32", "internalType": "bytes32" },
+          { "name": "status", "type": "uint8", "internalType": "enum BlipHistory.Status" },
+          { "name": "createdAt", "type": "uint256", "internalType": "uint256" },
+          { "name": "completedAt", "type": "uint256", "internalType": "uint256" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserRecords",
+    "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct BlipHistory.BridgeRecord[]",
+        "components": [
+          { "name": "recordId", "type": "uint256", "internalType": "uint256" },
+          { "name": "user", "type": "address", "internalType": "address" },
+          { "name": "amount", "type": "uint256", "internalType": "uint256" },
+          { "name": "recipient", "type": "address", "internalType": "address" },
+          { "name": "destinationDomain", "type": "uint32", "internalType": "uint32" },
+          { "name": "burnTxHash", "type": "bytes32", "internalType": "bytes32" },
+          { "name": "relayTxHash", "type": "bytes32", "internalType": "bytes32" },
+          { "name": "status", "type": "uint8", "internalType": "enum BlipHistory.Status" },
+          { "name": "createdAt", "type": "uint256", "internalType": "uint256" },
+          { "name": "completedAt", "type": "uint256", "internalType": "uint256" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "recordBridge",
+    "inputs": [
+      { "name": "user", "type": "address", "internalType": "address" },
+      { "name": "amount", "type": "uint256", "internalType": "uint256" },
+      { "name": "recipient", "type": "address", "internalType": "address" },
+      { "name": "burnTxHash", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "outputs": [{ "name": "recordId", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "recordCount",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "relayer",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setRelayer",
+    "inputs": [{ "name": "newRelayer", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "transferOwnership",
+    "inputs": [{ "name": "newOwner", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateStatus",
+    "inputs": [
+      { "name": "recordId", "type": "uint256", "internalType": "uint256" },
+      { "name": "status", "type": "uint8", "internalType": "enum BlipHistory.Status" },
+      { "name": "relayTxHash", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "BridgeRecorded",
+    "inputs": [
+      { "name": "recordId", "type": "uint256", "indexed": true, "internalType": "uint256" },
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "recipient", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "burnTxHash", "type": "bytes32", "indexed": false, "internalType": "bytes32" },
+      { "name": "createdAt", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "StatusUpdated",
+    "inputs": [
+      { "name": "recordId", "type": "uint256", "indexed": true, "internalType": "uint256" },
+      { "name": "status", "type": "uint8", "indexed": false, "internalType": "enum BlipHistory.Status" },
+      { "name": "relayTxHash", "type": "bytes32", "indexed": false, "internalType": "bytes32" },
+      { "name": "updatedAt", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  }
+]

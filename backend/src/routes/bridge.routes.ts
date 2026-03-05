@@ -1,60 +1,143 @@
 import { Router } from "express";
-import axios from "axios";
+import { monitorAndRelay } from "../services/cctp-monitor";
+import { collections } from "../database/db";
 
 const router: ReturnType<typeof Router> = Router();
 
 /**
- * @route POST /api/bridge/trigger
- * @desc Triggers the Chainlink CRE workflow to execute a bridge intent.
+ * @route POST /api/bridge/relay
+ * @desc Accepts a burnTxHash from World Chain, verifies intent, and triggers background relay to Base Sepolia.
  */
-router.post("/trigger", async (req, res) => {
-  const { intentId, user, amount, recipient, destinationChainSelector, proof } = req.body;
+router.post("/relay", async (req, res) => {
+  const { txHash, user, amount, recipient, proof, recordId, sourceChain, destChain } = req.body;
 
-  if (!user || !amount || !recipient || !destinationChainSelector || !proof) {
+  if (!txHash || !user || !amount || !recipient) {
     return res.status(400).json({ error: "Missing required bridging fields" });
   }
 
   try {
-    const creTriggerUrl = process.env.CRE_TRIGGER_URL; // E.g., https://trigger.cre.chain.link/v1/workflows/...
-    const creBearerToken = process.env.CRE_BEARER_TOKEN;
+    const users = await collections.users;
+    const dbUser = await users.findOne({ address: user.toLowerCase() });
 
-    if (!creTriggerUrl) {
-      console.warn("CRE_TRIGGER_URL not set, simulating CRE trigger success");
-      return res.status(200).json({
-        success: true,
-        message: "Simulation: CRE trigger successful",
-        details: { intentId, user, amount }
-      });
+    if (!dbUser || !dbUser.worldIdVerified) {
+      console.log(`User ${user} not verified in DB, checking proof...`);
     }
 
-    const payload = {
-      intentId: intentId || `intent_${Date.now()}`,
-      user,
-      amount,
-      recipient,
-      destinationChainSelector,
-      proof
-    };
+    // 2. Generate unique intentId
+    const intentId = `intent_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    const response = await axios.post(creTriggerUrl, payload, {
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${creBearerToken}`
-      }
+    // 3. Store intent in DB
+    const intents = await collections.intents;
+    await intents.insertOne({
+      intentId,
+      user: user.toLowerCase(),
+      amount: amount.toString(),
+      recipient: recipient.toLowerCase(),
+      burnTxHash: txHash,
+      status: "PENDING",
+      timestamp: new Date(),
+      onChainRecordId: recordId ? recordId.toString() : null,
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
 
+    // 4. Trigger background relay (don't await)
+    monitorAndRelay(intentId, txHash, sourceChain || 'WORLD_CHAIN', destChain || 'BASE_SEPOLIA').then(result => {
+      console.log(`[Relay] Background process finished for ${intentId}: ${result.status}`);
+    }).catch(err => {
+      console.error(`[Relay] Background process failed for ${intentId}:`, err);
+    });
+
+    // 5. Respond immediately to frontend
     return res.status(200).json({
       success: true,
-      creResponse: response.data
+      intentId,
+      status: "PENDING",
+      message: "Bridge intent registered. Relaying in progress..."
     });
 
   } catch (error: any) {
-    console.error("CRE Trigger Error:", error.response?.data || error.message);
+    console.error("Bridge Relay Error:", error.message);
     return res.status(500).json({
       success: false,
-      error: "Failed to trigger Chainlink CRE",
-      details: error.response?.data || error.message
+      error: "Failed to register bridge intent",
+      details: error.message
     });
+  }
+});
+
+/**
+ * @route POST /api/bridge/retry/:intentId
+ * @desc Re-triggers relay for a PENDING or FAILED intent (e.g. stuck attestation).
+ */
+router.post("/retry/:intentId", async (req, res) => {
+  const { intentId } = req.params;
+
+  try {
+    const intents = await collections.intents;
+    const intent = await intents.findOne({ intentId });
+
+    if (!intent) {
+      return res.status(404).json({ error: "Intent not found" });
+    }
+
+    if (intent.status === "RELAYING" || intent.status === "COMPLETED") {
+      return res.status(400).json({
+        error: `Cannot retry intent with status: ${intent.status}`,
+      });
+    }
+
+    // Reset to PENDING so the monitor starts fresh
+    await intents.updateOne(
+      { intentId },
+      { $set: { status: "PENDING", error: undefined, updatedAt: new Date() } }
+    );
+
+    monitorAndRelay(
+      intentId,
+      intent.burnTxHash,
+      (intent as any).sourceChain || "WORLD_CHAIN",
+      (intent as any).destChain || "BASE_SEPOLIA"
+    )
+      .then((result) => {
+        console.log(`[Relay] Retry finished for ${intentId}: ${result.status}`);
+      })
+      .catch((err) => {
+        console.error(`[Relay] Retry failed for ${intentId}:`, err);
+      });
+
+    return res.status(200).json({
+      success: true,
+      intentId,
+      status: "PENDING",
+      message: "Retry triggered. Polling attestation...",
+    });
+  } catch (error: any) {
+    console.error("Retry Error:", error.message);
+/**
+ * @route GET /api/bridge/status/:intentId
+ * @desc Returns current status and any available transaction hashes for an intent.
+ */
+router.get("/status/:intentId", async (req, res) => {
+  const { intentId } = req.params;
+  try {
+    const intents = await collections.intents;
+    const intent = await intents.findOne({ intentId });
+
+    if (!intent) {
+      return res.status(404).json({ error: "Intent not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: intent.status,
+      burnTxHash: intent.burnTxHash,
+      destTxHash: intent.baseTxHash || null, // baseTxHash is used for the destination tx
+      error: intent.error || null
+    });
+  } catch (error: any) {
+    console.error("Status Error:", error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

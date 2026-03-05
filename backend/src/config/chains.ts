@@ -6,17 +6,19 @@ export const CHAINS = {
     chainId: 4801,
     rpcUrl: process.env.WORLD_CHAIN_RPC!,
     explorer: "https://worldchain-sepolia.explorer.alchemy.com",
-    ccipRouter: "0x4769623838E83D046AeEb099042a98D081916E8d",
-    linkToken: "0x779877A7B0D9E8603169DdbD7836e478b4624789",
-    usdcToken: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88"
+    tokenMessenger: process.env.WORLD_CHAIN_TOKEN_MESSENGER!,
+    messageTransmitter: "0xe737e5cebeeba77efe34d4aa090756590b1ce275", // World Chain Sepolia MessageTransmitter (CCTP V2)
+    usdcToken: process.env.WORLD_CHAIN_USDC!,
+    domain: parseInt(process.env.WORLD_CHAIN_DOMAIN || "14")
   },
-  BASE: {
+  BASE_SEPOLIA: {
     name: "Base Sepolia",
     chainId: 84532,
     rpcUrl: process.env.BASE_RPC!,
     explorer: "https://sepolia.basescan.org",
-    chainSelector: "10344971235874465080", // CCIP chain selector
-    ccipRouter: "0xD3b06143f349118188bD6731Fb330CB44619dED2",
-    usdcToken: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+    tokenMessenger: "0x9f3f620bd14e4b6009ed098696d744a56a644837",
+    messageTransmitter: process.env.BASE_SEPOLIA_MESSAGE_TRANSMITTER!,
+    usdcToken: process.env.BASE_SEPOLIA_USDC!,
+    domain: parseInt(process.env.BASE_SEPOLIA_DOMAIN || "6")
   }
 } as const;

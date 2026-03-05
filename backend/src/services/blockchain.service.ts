@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { CHAINS } from "../config/chains";
 import dotenv from "dotenv";
 
 // Blockchain configuration is handled via environment variables
@@ -9,20 +10,22 @@ export class BlockchainService {
   private wallet: ethers.Wallet;
 
   constructor() {
-    const rpcUrl = process.env.ETHEREUM_RPC_URL || "http://localhost:8545";
-    const privateKey = process.env.PRIVATE_KEY;
+    const crePrivateKey = process.env.CRE_PRIVATE_KEY;
 
     console.log('BlockchainService initialization (Bridging Mode):');
-    console.log('- RPC URL:', rpcUrl);
-    console.log('- Private Key:', privateKey ? 'SET' : 'NOT SET');
+    console.log('- World Chain RPC:', CHAINS.WORLD_CHAIN.rpcUrl);
+    console.log('- CRE Private Key:', crePrivateKey ? 'SET' : 'NOT SET');
 
-    if (!privateKey) {
-      console.error('Missing required environment variable: PRIVATE_KEY');
+    if (!crePrivateKey) {
+      console.error('Missing required environment variable: CRE_PRIVATE_KEY');
       throw new Error("Missing blockchain configuration");
     }
 
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
-    this.wallet = new ethers.Wallet(privateKey, this.provider);
+    this.provider = new ethers.JsonRpcProvider(CHAINS.WORLD_CHAIN.rpcUrl, {
+      chainId: CHAINS.WORLD_CHAIN.chainId,
+      name: CHAINS.WORLD_CHAIN.name
+    }, { staticNetwork: true });
+    this.wallet = new ethers.Wallet(crePrivateKey, this.provider);
   }
 
   // Bridge specific methods will be added here

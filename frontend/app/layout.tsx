@@ -25,9 +25,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log("MiniKit App ID:", process.env.NEXT_PUBLIC_WORLD_APP_ID);
   return (
     <html lang="en">
-      <MiniKitProvider>
+      <MiniKitProvider props={{ appId: process.env.NEXT_PUBLIC_WORLD_APP_ID! }}>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen pb-20`}
         >

@@ -4,11 +4,11 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
-import { startEventListener } from './services/event-listener';
 import { initWebSocket } from './services/websocket';
 import { logger } from './utils/logger';
-import { prisma } from './database/client';
+import { connectToDatabase, collections } from './database/db';
 import verifyRoutes from './routes/verify.routes';
+import bridgeRoutes from './routes/bridge.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -25,6 +25,7 @@ app.use(express.json());
 // ROUTES
 // ═══════════════════════════════════════════════════════════
 
+app.use('/api/bridge', bridgeRoutes);
 app.use('/api', verifyRoutes);
 
 app.get('/health', (req, res) => {
@@ -34,9 +35,8 @@ app.get('/health', (req, res) => {
 app.get('/api/intents/:intentId', async (req, res) => {
   try {
     const { intentId } = req.params;
-    const intent = await prisma.intent.findUnique({
-      where: { intentId }
-    });
+    const intents = await collections.intents;
+    const intent = await intents.findOne({ intentId });
     
     if (!intent) {
       return res.status(404).json({ error: 'Intent not found' });
@@ -51,22 +51,45 @@ app.get('/api/intents/:intentId', async (req, res) => {
   }
 });
 
+app.get('/api/intents/user/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const intentsCollection = await collections.intents;
+    const intents = await intentsCollection.find({ user: address }).sort({ createdAt: -1 }).toArray();
+    
+    res.json(intents);
+  } catch (error) {
+    logger.error('Error fetching user intents:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════
 // START SERVER
 // ═══════════════════════════════════════════════════════════
 
 async function main() {
-  
-  // Initialize WebSocket
-  initWebSocket(httpServer);
-  
-  // Start event listener
-  await startEventListener();
-  
-  // Start HTTP server
+  // Ensure DB connection
+  try {
+    await connectToDatabase();
+    logger.info('Connected to MongoDB');
+  } catch (error) {
+    logger.error('Failed to connect to MongoDB:', error);
+    process.exit(1);
+  }
+
+  // Start HTTP server immediately
   httpServer.listen(PORT, () => {
     logger.info(`🚀 Server running on port ${PORT}`);
   });
+
+  // Initialize background services
+  try {
+    // Initialize WebSocket
+    initWebSocket(httpServer);
+  } catch (error) {
+    logger.error('Error initializing background services:', error);
+  }
 }
 
 main().catch((error) => {
