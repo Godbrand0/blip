@@ -9,6 +9,7 @@ const router: ReturnType<typeof Router> = Router();
  * @desc Accepts a burnTxHash from World Chain, verifies intent, and triggers background relay to Base Sepolia.
  */
 router.post("/relay", async (req, res) => {
+  console.log("[Relay] Incoming request body:", JSON.stringify(req.body, null, 2));
   const { txHash, user, amount, recipient, proof, recordId, sourceChain, destChain } = req.body;
 
   if (!txHash || !user || !amount || !recipient) {
@@ -37,6 +38,8 @@ router.post("/relay", async (req, res) => {
       status: "PENDING",
       timestamp: new Date(),
       onChainRecordId: recordId ? recordId.toString() : null,
+      sourceChain: sourceChain || 'WORLD_CHAIN',
+      destChain: destChain || 'BASE_SEPOLIA',
       createdAt: new Date(),
       updatedAt: new Date()
     });

@@ -12,6 +12,19 @@ import { formatUnits, erc20Abi } from "viem";
 import { useEffect, useState } from "react";
 
 import { USDC_ADDRESS, BASE_SEPOLIA_USDC, CHAIN_CONFIGS } from "@/src/config/contracts";
+
+function formatTime(ts: string | Date | null | undefined): string {
+  if (!ts) return "";
+  const date = typeof ts === "string" ? new Date(ts) : ts;
+  if (isNaN(date.getTime())) return "";
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 import { worldchainSepolia } from "@/wagmi-config";
 import { baseSepolia } from "wagmi/chains"; // Import baseSepolia
 import { useBalance } from "wagmi";
@@ -41,8 +54,9 @@ export default function HomePage() {
   const { walletAddress } = useAuth();
   const { intents } = useIntents(walletAddress);
   const { records: onChainRecords } = useOnChainHistory(walletAddress);
-  // On-chain records are the source of truth; fall back to Zustand cache while chain loads
-  const displayHistory = onChainRecords.length > 0 ? onChainRecords : intents;
+  // Intents from DB are the display source of truth (they carry sourceChain/destChain).
+  // Fall back to on-chain records only when intents haven't loaded yet.
+  const displayHistory = intents.length > 0 ? intents : onChainRecords;
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -262,25 +276,38 @@ export default function HomePage() {
                         </div>
                         <div>
                           <h4 className="text-sm font-black">{item.amount} USDC</h4>
-                          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">World → Base</p>
+                          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                            {(item as any).sourceChain === 'BASE_SEPOLIA' ? 'Base' : 'World'} → {(item as any).destChain === 'BASE_SEPOLIA' ? 'Base' : 'World'}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
                           item.status === 'COMPLETED'
                             ? 'bg-green-500/10 text-green-500'
+                            : item.status === 'FAILED'
+                            ? 'bg-red-500/10 text-red-500'
                             : 'bg-indigo-500/10 text-indigo-500 animate-pulse'
                         }`}>
                           {item.status}
                         </span>
-                        <p className="text-[10px] text-zinc-600 mt-2 font-mono">{item.recipient.slice(0, 6)}...{item.recipient.slice(-4)}</p>
+                        <p className="text-[10px] text-zinc-600 mt-2 font-mono">
+                          {formatTime(
+                            item.status === 'COMPLETED'
+                              ? ((item as any).completedAt || (item as any).createdAt || (item as any).timestamp)
+                              : ((item as any).createdAt || (item as any).timestamp)
+                          )}
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex gap-2 pt-2 border-t border-glass-border">
                       {((item as any).sourceTxHash || (item as any).burnTxHash) && (
                         <a 
-                          href={`https://worldchain-sepolia.explorer.alchemy.com/tx/${(item as any).sourceTxHash || (item as any).burnTxHash}`}
+                          href={(item as any).sourceChain === 'BASE_SEPOLIA' 
+                            ? `https://sepolia.basescan.org/tx/${(item as any).sourceTxHash || (item as any).burnTxHash}`
+                            : `https://worldchain-sepolia.explorer.alchemy.com/tx/${(item as any).sourceTxHash || (item as any).burnTxHash}`
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-indigo-400"
@@ -291,7 +318,10 @@ export default function HomePage() {
                       )}
                       {(item.status === 'COMPLETED' || (item as any).destTxHash || (item as any).baseTxHash) && ((item as any).destTxHash || (item as any).baseTxHash) && (
                         <a 
-                          href={`https://sepolia.basescan.org/tx/${(item as any).destTxHash || (item as any).baseTxHash}`}
+                          href={(item as any).destChain === 'WORLD_CHAIN'
+                            ? `https://worldchain-sepolia.explorer.alchemy.com/tx/${(item as any).destTxHash || (item as any).baseTxHash}`
+                            : `https://sepolia.basescan.org/tx/${(item as any).destTxHash || (item as any).baseTxHash}`
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-green-400"

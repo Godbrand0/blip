@@ -10,6 +10,8 @@ import {
   CHAIN_CONFIGS,
   TOKEN_MESSENGER_ABI,
   ERC20_ABI,
+  WORLD_CHAIN_USDC,
+  BASE_SEPOLIA_USDC,
 } from "@/src/config/contracts";
 import { worldchainSepolia } from "@/wagmi-config";
 import { baseSepolia } from "wagmi/chains";
@@ -35,6 +37,8 @@ const basePublicClient = createPublicClient({
 import { ArrowRightLeft, ArrowLeft, CheckCircle, Loader2, AlertCircle, Wallet, Repeat } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useIntents } from "@/hooks/useIntents";
+import { getSocket } from "@/lib/websocket";
 
 function usdcToRaw(amount: number): string {
   return BigInt(Math.round(amount * 1e6)).toString();
@@ -55,6 +59,7 @@ function BridgeForm() {
   const { data: walletClient } = useWalletClient();
   const { switchChainAsync } = useSwitchChain();
   const { chainId: currentChainId } = useAccount();
+  const { addIntent } = useIntents(walletAddress);
 
   const [sourceChainId, setSourceChainId] = useState<number>(worldchainSepolia.id);
   const [destChainId, setDestChainId] = useState<number>(baseSepolia.id);
@@ -75,25 +80,72 @@ function BridgeForm() {
   const [relayStatus, setRelayStatus] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Polling for relay status
+  // WebSocket listener for real-time relay status updates
   useEffect(() => {
-    if (step === "done" && intentId && relayStatus !== "COMPLETED" && relayStatus !== "FAILED") {
-      const interval = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/bridge/status/${intentId}`);
-          const data = await res.json();
-          if (data.success) {
-            setRelayStatus(data.status);
-            if (data.destTxHash) setDestTxHash(data.destTxHash);
-            if (data.status === "FAILED") setErrorMsg(data.error || "Relay failed");
+    if (!intentId) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const onRelaying = (data: { intentId: string }) => {
+      if (data.intentId !== intentId) return;
+      setRelayStatus("RELAYING");
+    };
+    const onCompleted = (data: { intentId: string; baseTxHash: string }) => {
+      if (data.intentId !== intentId) return;
+      setRelayStatus("COMPLETED");
+      if (data.baseTxHash) setDestTxHash(data.baseTxHash);
+    };
+    const onFailed = (data: { intentId: string; error: string }) => {
+      if (data.intentId !== intentId) return;
+      setRelayStatus("FAILED");
+      setErrorMsg(data.error || "Relay failed");
+    };
+
+    socket.on("intent-relaying", onRelaying);
+    socket.on("intent-completed", onCompleted);
+    socket.on("intent-failed", onFailed);
+
+    return () => {
+      socket.off("intent-relaying", onRelaying);
+      socket.off("intent-completed", onCompleted);
+      socket.off("intent-failed", onFailed);
+    };
+  }, [intentId]);
+
+  // HTTP polling fallback for relay status (in case WebSocket event is missed)
+  useEffect(() => {
+    if (step !== "done" || !intentId) return;
+
+    let active = true;
+    let interval: ReturnType<typeof setInterval>;
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/bridge/status/${intentId}`);
+        const data = await res.json();
+        if (!active) return;
+        if (data.success) {
+          setRelayStatus(data.status);
+          if (data.destTxHash) setDestTxHash(data.destTxHash);
+          if (data.status === "FAILED") setErrorMsg(data.error || "Relay failed");
+          if (data.status === "COMPLETED" || data.status === "FAILED") {
+            clearInterval(interval);
           }
-        } catch (e) {
-          console.error("[CCTP] Status poll error:", e);
         }
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [step, intentId, relayStatus]);
+      } catch (e) {
+        console.error("[CCTP] Status poll error:", e);
+      }
+    };
+
+    // Immediate check (don't wait 5s for first poll)
+    checkStatus();
+    interval = setInterval(checkStatus, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [step, intentId]); // intentionally excludes relayStatus to avoid restarting interval on each status change
 
   // Fetch USDC balances using reliable RPC clients
   const [sourceUsdcBalRaw, setSourceUsdcBalRaw] = useState<bigint>(BigInt(0));
@@ -103,22 +155,26 @@ function BridgeForm() {
     if (!walletAddress) return;
     const fetchUsdc = async () => {
       try {
-        const [sBal, dBal] = await Promise.all([
+        // Fetch each chain's balance using its dedicated client/address
+        const [worldBal, baseBal] = await Promise.all([
           wcPublicClient.readContract({
-            address: sourceConfig.usdc as `0x${string}`,
+            address: WORLD_CHAIN_USDC as `0x${string}`,
             abi: erc20Abi,
             functionName: "balanceOf",
             args: [walletAddress as `0x${string}`],
           }),
           basePublicClient.readContract({
-            address: destConfig.usdc as `0x${string}`,
+            address: BASE_SEPOLIA_USDC as `0x${string}`,
             abi: erc20Abi,
             functionName: "balanceOf",
             args: [walletAddress as `0x${string}`],
           }),
         ]);
-        setSourceUsdcBalRaw(sBal as bigint);
-        setDestUsdcBalRaw(dBal as bigint);
+
+        // Map the results back to source/dest based on the current direction
+        const isWorldToBase = sourceChainId === 4801;
+        setSourceUsdcBalRaw(isWorldToBase ? (worldBal as bigint) : (baseBal as bigint));
+        setDestUsdcBalRaw(isWorldToBase ? (baseBal as bigint) : (worldBal as bigint));
       } catch (e) {
         console.error("[CCTP] Bridge balance sync error:", e);
       }
@@ -126,7 +182,7 @@ function BridgeForm() {
     fetchUsdc();
     const id = setInterval(fetchUsdc, 10000);
     return () => clearInterval(id);
-  }, [walletAddress, sourceConfig.usdc, destConfig.usdc]);
+  }, [walletAddress, sourceChainId]); // Dependencies on walletAddress and direction (sourceChainId)
 
   const sourceUsdcBalance = parseFloat(formatUnits(sourceUsdcBalRaw, 6));
   const destUsdcBalance = parseFloat(formatUnits(destUsdcBalRaw, 6));
@@ -268,6 +324,8 @@ function BridgeForm() {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _recordId = await recordOnChain(txHash, rawAmount);
 
+        console.log(`[CCTP] Starting bridge relay (MiniKit): ${sourceChainId} -> ${destChainId}`);
+
         // Relay via backend
         const response = await fetch("/api/bridge/relay", {
           method: "POST",
@@ -279,13 +337,26 @@ function BridgeForm() {
             recipient,
             proof: worldIdProof,
             recordId: _recordId,
-            sourceChain: sourceChainId === worldchainSepolia.id ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
-            destChain: destChainId === worldchainSepolia.id ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+            sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+            destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
           }),
         });
 
         const result = await response.json();
         if (!result.success) throw new Error(result.error || "Bridge relay registration failed");
+        
+        // Add to local store for immediate history matching
+        addIntent({
+          intentId: result.intentId,
+          amount: parsedAmount,
+          recipient,
+          status: "PENDING",
+          burnTxHash: txHash,
+          sourceTxHash: txHash,
+          sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+          destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+        });
+
         setIntentId(result.intentId);
         setStep("done");
 
@@ -320,10 +391,11 @@ function BridgeForm() {
             sourceConfig.usdc as `0x${string}`,
             zeroBytes32,
             BigInt(100000), // maxFee (0.1 USDC)
-            1000, // Fast Transfer
+            0, // Standard Transfer (to avoid gas estimation revert)
           ],
           account: walletAddress as `0x${string}`,
           chain: sourcePublicClient.chain,
+          gas: BigInt(500000), // Manual gas limit to bypass RPC estimation error
         });
 
         setBridgeTxHash(burnHash);
@@ -331,6 +403,8 @@ function BridgeForm() {
 
         // Record on-chain (non-blocking)
         const recordId = await recordOnChain(burnHash, rawAmount);
+
+        console.log(`[CCTP] Starting bridge relay (Web Wallet): ${sourceChainId} -> ${destChainId}`);
 
         // Relay via backend
         const response = await fetch("/api/bridge/relay", {
@@ -343,13 +417,26 @@ function BridgeForm() {
             recipient,
             proof: worldIdProof,
             recordId,
-            sourceChain: sourceChainId === worldchainSepolia.id ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
-            destChain: destChainId === worldchainSepolia.id ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+            sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+            destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
           }),
         });
 
         const result = await response.json();
         if (!result.success) throw new Error(result.error || "Bridge relay registration failed");
+        
+        // Add to local store for immediate history matching
+        addIntent({
+          intentId: result.intentId,
+          amount: parsedAmount,
+          recipient,
+          status: "PENDING",
+          burnTxHash: burnHash,
+          sourceTxHash: burnHash,
+          sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+          destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+        });
+
         setIntentId(result.intentId);
         setStep("done");
       }
@@ -553,71 +640,170 @@ function BridgeForm() {
           </motion.div>
         )}
 
-        {/* ... (Keep approving/bridging steps) ... */}
+        {step === "approving" && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card p-12 flex flex-col items-center text-center space-y-8 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-indigo-600/5 animate-pulse" />
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+              <Wallet className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-400" size={24} />
+            </div>
+            <div className="space-y-3 relative">
+              <h2 className="text-2xl font-black tracking-tight uppercase">Action Required</h2>
+              <p className="text-xs text-zinc-400 font-medium max-w-[200px] mx-auto leading-relaxed">
+                Please confirm the signature in your wallet to continue.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {step === "bridging" && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card p-12 flex flex-col items-center text-center space-y-8"
+          >
+            <div className="relative w-24 h-24">
+              <svg className="w-full h-full -rotate-90">
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="44"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  className="text-white/5"
+                />
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="44"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  strokeDasharray="276"
+                  className="text-indigo-500 animate-[dash_2s_ease-in-out_infinite]"
+                  style={{
+                    strokeDashoffset: 100,
+                  }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <ArrowRightLeft className="text-indigo-400 animate-pulse" size={24} />
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <h2 className="text-2xl font-black tracking-tight uppercase">Bridging...</h2>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-zinc-400 font-medium">Sending your USDC to the relay.</p>
+                {bridgeTxHash && (
+                   <p className="text-[10px] font-mono text-indigo-400/60 truncate max-w-[200px] mx-auto">{bridgeTxHash}</p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {step === "done" && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-10 flex flex-col items-center text-center space-y-6"
+            className="flex flex-col gap-6"
           >
-            {relayStatus === "COMPLETED" ? (
-              <CheckCircle size={48} className="text-green-400" />
-            ) : relayStatus === "FAILED" ? (
-              <AlertCircle size={48} className="text-red-400" />
-            ) : (
-              <Loader2 size={48} className="text-indigo-400 animate-spin" />
-            )}
-
-            <div className="space-y-2">
-              <h2 className="text-xl font-black tracking-tight uppercase">
-                {relayStatus === "COMPLETED" ? "Transfer Complete!" : relayStatus === "FAILED" ? "Relay Failed" : "Bridging in Progress..."}
-              </h2>
-              <p className="text-xs text-zinc-400 font-medium">
-                {relayStatus === "COMPLETED" 
-                  ? `${parsedAmount} USDC has arrived on Base Sepolia.`
-                  : relayStatus === "FAILED"
-                  ? errorMsg
-                  : "CCTP is relaying your USDC. This usually takes 5-10 minutes."}
-              </p>
-            </div>
-
-            <div className="w-full flex flex-col gap-3">
-              {bridgeTxHash && (
-                <a
-                  href={`${sourceConfig.explorer}/tx/${bridgeTxHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors group"
-                >
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400">Source: {sourceConfig.name}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">View Tx →</span>
-                </a>
-              )}
-              {destTxHash ? (
-                <a
-                  href={`${destConfig.explorer}/tx/${destTxHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors group"
-                >
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400">Dest: {destConfig.name}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">View Tx →</span>
-                </a>
-              ) : relayStatus !== "FAILED" && (
-                <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl opacity-50">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dest: {destConfig.name}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Pending...</span>
+            {/* Main Success Card */}
+            <div className="glass-card p-10 flex flex-col items-center text-center space-y-6 relative overflow-hidden">
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-green-500/50 to-transparent" />
+              
+              {relayStatus === "COMPLETED" ? (
+                <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-2">
+                  <CheckCircle size={32} className="text-green-400" />
+                </div>
+              ) : relayStatus === "FAILED" ? (
+                <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-2">
+                  <AlertCircle size={32} className="text-red-400" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-2">
+                  <Loader2 size={32} className="text-indigo-400 animate-spin" />
                 </div>
               )}
-            </div>
+  
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black tracking-tight uppercase">
+                  {relayStatus === "COMPLETED" ? "Bridge Success!" : relayStatus === "FAILED" ? "Bridge Failed" : "Bridging in Progress..."}
+                </h2>
+                <p className="text-xs text-zinc-400 font-medium">
+                  {relayStatus === "COMPLETED" 
+                    ? `Your ${parsedAmount} USDC has successfully arrived on ${destConfig.name}.`
+                    : relayStatus === "FAILED"
+                    ? errorMsg
+                    : "CCTP is relaying your USDC. This usually takes 5-10 minutes."}
+                </p>
+              </div>
 
-            <button
-              onClick={reset}
-              className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider hover:scale-[1.01] transition-all"
-            >
-              Bridge Again
-            </button>
+              {/* Transaction Summary (Only on Success) */}
+              {relayStatus === "COMPLETED" && (
+                <div className="w-full space-y-3 pt-6 border-t border-glass-border">
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                    <span className="text-zinc-500">Amount Sent</span>
+                    <span className="text-white">{parsedAmount} USDC</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                    <span className="text-zinc-500">CCTP Bridge Fee</span>
+                    <span className="text-indigo-400">0.10 USDC</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                    <span className="text-zinc-500">Network Gas Fee</span>
+                    <span className="text-zinc-400">&lt; 0.001 ETH</span>
+                  </div>
+                </div>
+              )}
+  
+              <div className="w-full flex flex-col gap-3">
+                {bridgeTxHash && (
+                  <a
+                    href={`${sourceConfig.explorer}/tx/${bridgeTxHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors group"
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400">Source: {sourceConfig.name}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1">
+                      View Tx <ArrowRightLeft size={10} className="rotate-45" />
+                    </span>
+                  </a>
+                )}
+                {destTxHash ? (
+                  <a
+                    href={`${destConfig.explorer}/tx/${destTxHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors group"
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400">Dest: {destConfig.name}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1">
+                      View Tx <ArrowRightLeft size={10} className="rotate-45" />
+                    </span>
+                  </a>
+                ) : relayStatus !== "FAILED" && (
+                  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl opacity-50">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dest: {destConfig.name}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Pending...</span>
+                  </div>
+                )}
+              </div>
+  
+              <button
+                onClick={reset}
+                className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider hover:scale-[1.01] transition-all"
+              >
+                {relayStatus === "COMPLETED" ? "Close" : "Bridge Again"}
+              </button>
+            </div>
           </motion.div>
         )}
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { txHash, user, amount, recipient, proof } = body;
+    const { txHash, user, amount, recipient, proof, recordId, sourceChain, destChain } = body;
 
     if (!txHash || !user || !amount || !recipient) {
       return NextResponse.json(
@@ -23,6 +23,9 @@ export async function POST(req: NextRequest) {
       amount,
       recipient,
       proof,
+      recordId,
+      sourceChain,
+      destChain,
     };
 
     const targetUrl = `${backendUrl}/api/bridge/relay`;

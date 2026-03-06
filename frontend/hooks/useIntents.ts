@@ -14,10 +14,15 @@ interface Intent {
   recipient: string;
   status: "PENDING" | "RELAYING" | "COMPLETED" | "FAILED";
   burnTxHash?: string;
+  sourceTxHash?: string;
   messageHash?: string;
   baseTxHash?: string;
   basescanUrl?: string;
+  sourceChain?: string;
+  destChain?: string;
   error?: string;
+  createdAt?: string | Date;
+  completedAt?: string | Date | null;
 }
 
 import { persist } from "zustand/middleware";
@@ -62,11 +67,17 @@ export function useIntents(walletAddress?: string | null) {
 
     const fetchIntents = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/intents/user/${walletAddress}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/intents/user/${walletAddress.toLowerCase()}`);
         if (response.ok) {
           const data = await response.json();
-          // Filter out any duplicates if necessary or just replace
-          setIntents(data);
+          // Normalize: DB stores amount as raw USDC string (e.g. "2000000"), convert to human-readable float
+          const normalized = data.map((i: any) => ({
+            ...i,
+            amount: typeof i.amount === 'string'
+              ? parseFloat((Number(i.amount) / 1e6).toFixed(6))
+              : Number(i.amount),
+          }));
+          setIntents(normalized);
         }
       } catch (error) {
         console.error("Failed to fetch intents:", error);
@@ -132,6 +143,8 @@ export interface OnChainRecord {
   sourceTxHash: string;
   destTxHash: string;
   status: Intent["status"];
+  sourceChain?: string;
+  destChain?: string;
   createdAt: Date;
   completedAt: Date | null;
 }
@@ -150,19 +163,31 @@ export function useOnChainHistory(walletAddress?: string | null) {
     },
   });
 
+  const { intents } = useIntentStore();
+
   const records: OnChainRecord[] = data
     ? (data as any[])
-        .map((r) => ({
-          id:           r.id as bigint,
-          user:         r.user as string,
-          amount:       parseFloat(formatUnits(r.amount as bigint, 6)),
-          recipient:    r.recipient as string,
-          sourceTxHash: r.sourceTxHash as string,
-          destTxHash:   r.destTxHash as string,
-          status:       STATUS_MAP[Number(r.status)] ?? "PENDING",
-          createdAt:    new Date(Number(r.createdAt) * 1000),
-          completedAt:  Number(r.completedAt) > 0 ? new Date(Number(r.completedAt) * 1000) : null,
-        }))
+        .map((r) => {
+          const sourceTxHash = r.sourceTxHash as string;
+          const matchingIntent = intents.find(i => 
+            i.burnTxHash?.toLowerCase() === sourceTxHash.toLowerCase() ||
+            i.sourceTxHash?.toLowerCase() === sourceTxHash.toLowerCase()
+          );
+
+          return {
+            id:           r.id as bigint,
+            user:         r.user as string,
+            amount:       parseFloat(formatUnits(r.amount as bigint, 6)),
+            recipient:    r.recipient as string,
+            sourceTxHash: sourceTxHash,
+            destTxHash:   r.destTxHash as string,
+            status:       STATUS_MAP[Number(r.status)] ?? "PENDING",
+            sourceChain:  matchingIntent?.sourceChain,
+            destChain:    matchingIntent?.destChain,
+            createdAt:    new Date(Number(r.createdAt) * 1000),
+            completedAt:  Number(r.completedAt) > 0 ? new Date(Number(r.completedAt) * 1000) : null,
+          };
+        })
         .reverse()
     : [];
 

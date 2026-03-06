@@ -2,6 +2,7 @@ import { collections } from '../database/db';
 import { CHAINS } from '../config/chains';
 import { CONTRACTS } from '../config/contracts';
 import { ethers } from 'ethers';
+import { notifyFrontend } from './websocket';
 
 // ── BlipHistory on-chain status updater ────────────────────────────────────
 // Status enum mirrors BlipHistory.sol: 0=PENDING, 1=RELAYING, 2=COMPLETED, 3=FAILED
@@ -146,9 +147,16 @@ export async function monitorAndRelay(
   try {
     // ── Step 1: Extract MessageSent bytes from burn tx receipt ───────────────
     const sourceProvider = new ethers.JsonRpcProvider(CHAINS[sourceChainName].rpcUrl);
-    const receipt = await sourceProvider.getTransactionReceipt(burnTxHash);
+    
+    let receipt: ethers.TransactionReceipt | null = null;
+    for (let i = 0; i < 3; i++) {
+      receipt = await sourceProvider.getTransactionReceipt(burnTxHash);
+      if (receipt) break;
+      console.log(`[CCTP] Source receipt not found for ${burnTxHash}, retrying ${i+1}/3...`);
+      await new Promise(r => setTimeout(r, 5000));
+    }
 
-    if (!receipt) throw new Error(`Transaction receipt not found for ${burnTxHash}`);
+    if (!receipt) throw new Error(`Transaction receipt not found for ${burnTxHash} after 3 attempts`);
 
     const MESSAGE_SENT_TOPIC = ethers.id('MessageSent(bytes)');
     const transmitterAddress = CHAINS[sourceChainName].messageTransmitter.toLowerCase();
@@ -243,6 +251,7 @@ export async function monitorAndRelay(
         }
       }
     );
+    notifyFrontend('intent-relaying', { intentId, messageHash });
     updateOnChainStatus(intentId, 1, ethers.ZeroHash, CHAINS[destChainName].chainId);
 
     // ── Step 4: Call receiveMessage on destination MessageTransmitter ─────────
@@ -278,6 +287,7 @@ export async function monitorAndRelay(
         }
       }
     );
+    notifyFrontend('intent-completed', { intentId, baseTxHash: relayTxHash });
     updateOnChainStatus(intentId, 2, relayTxHash, CHAINS[destChainName].chainId);
 
     return { status: 'SUCCESS', destinationTxHash: relayTxHash };
@@ -296,6 +306,7 @@ export async function monitorAndRelay(
         }
       }
     );
+    notifyFrontend('intent-failed', { intentId, error: error.message || 'Unknown error during relay' });
     updateOnChainStatus(intentId, 3, ethers.ZeroHash, CHAINS[destChainName].chainId);
 
     return { status: 'FAILED', error: error.message };

@@ -7,6 +7,7 @@ import {
   arbitrum,
   base,
   sepolia,
+  baseSepolia,
 } from "wagmi/chains";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 
@@ -63,7 +64,7 @@ if (!projectId || projectId === "your_walletconnect_project_id") {
 export const config = getDefaultConfig({
   appName: "Blip",
   projectId: projectId || "",
-  chains: [worldchainSepolia, worldchain, mainnet, polygon, optimism, arbitrum, base, sepolia],
+  chains: [worldchainSepolia, worldchain, mainnet, polygon, optimism, arbitrum, base, sepolia, baseSepolia],
   transports: {
     [worldchainSepolia.id]: fallback([
       ...(process.env.NEXT_PUBLIC_WORLD_CHAIN_RPC
@@ -81,6 +82,11 @@ export const config = getDefaultConfig({
     [arbitrum.id]: httpTransport(),
     [base.id]: httpTransport(),
     [sepolia.id]: httpTransport(),
+    [baseSepolia.id]: fallback([
+      httpTransport("https://sepolia.base.org"),
+      httpTransport("https://base-sepolia.drpc.org"),
+      httpTransport("https://base-sepolia.gateway.tenderly.co"),
+    ]),
   },
 });
 

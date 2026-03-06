@@ -7,7 +7,7 @@ export const CHAINS = {
     rpcUrl: process.env.WORLD_CHAIN_RPC!,
     explorer: "https://worldchain-sepolia.explorer.alchemy.com",
     tokenMessenger: process.env.WORLD_CHAIN_TOKEN_MESSENGER!,
-    messageTransmitter: "0xe737e5cebeeba77efe34d4aa090756590b1ce275", // World Chain Sepolia MessageTransmitter (CCTP V2)
+    messageTransmitter: process.env.WORLD_CHAIN_MESSAGE_TRANSMITTER!,
     usdcToken: process.env.WORLD_CHAIN_USDC!,
     domain: parseInt(process.env.WORLD_CHAIN_DOMAIN || "14")
   },
@@ -16,7 +16,7 @@ export const CHAINS = {
     chainId: 84532,
     rpcUrl: process.env.BASE_RPC!,
     explorer: "https://sepolia.basescan.org",
-    tokenMessenger: "0x9f3f620bd14e4b6009ed098696d744a56a644837",
+    tokenMessenger: process.env.BASE_SEPOLIA_TOKEN_MESSENGER!,
     messageTransmitter: process.env.BASE_SEPOLIA_MESSAGE_TRANSMITTER!,
     usdcToken: process.env.BASE_SEPOLIA_USDC!,
     domain: parseInt(process.env.BASE_SEPOLIA_DOMAIN || "6")
