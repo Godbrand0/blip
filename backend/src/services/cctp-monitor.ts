@@ -46,20 +46,24 @@ async function updateOnChainStatus(
 
     if (!recordId && intent.burnTxHash) {
        console.log(`[BlipTransactionRecorder] Missing recordId for ${intentId}, attempting discovery...`);
-       try {
-         const recorder = getRecorderContract();
-         const filter = recorder.filters.TransactionRecorded(null, intent.user);
-         const events = await recorder.queryFilter(filter, -5000); // Look back ~5000 blocks
-         
-         const found = events.find((e: any) => e.args.sourceTxHash.toLowerCase() === intent.burnTxHash.toLowerCase());
-         if (found) {
-           recordId = (found as any).args.id.toString();
-           console.log(`[BlipTransactionRecorder] Discovered recordId ${recordId} for ${intentId}`);
-           // Update DB for next time
-           await intents.updateOne({ intentId }, { $set: { onChainRecordId: recordId } });
+       // Retry discovery a few times if it's missing (race condition)
+       for (let i = 0; i < 3; i++) {
+         try {
+           const recorder = getRecorderContract();
+           const filter = recorder.filters.TransactionRecorded(null, intent.user);
+           const events = await recorder.queryFilter(filter, -5); // Use 5 blocks to stay safely within Alchemy's 10 block limit
+           
+           const found = events.find((e: any) => e.args.sourceTxHash.toLowerCase() === intent.burnTxHash.toLowerCase());
+           if (found) {
+             recordId = (found as any).args.id.toString();
+             console.log(`[BlipTransactionRecorder] Discovered recordId ${recordId} for ${intentId}`);
+             await intents.updateOne({ intentId }, { $set: { onChainRecordId: recordId } });
+             break;
+           }
+         } catch (discoveryError: any) {
+           console.warn(`[BlipTransactionRecorder] Discovery attempt ${i+1} failed:`, discoveryError.message);
          }
-       } catch (discoveryError: any) {
-         console.warn(`[BlipTransactionRecorder] Record discovery failed:`, discoveryError.message);
+         if (i < 2) await new Promise(r => setTimeout(r, 2000)); // Wait 2s between retries
        }
     }
 
@@ -158,7 +162,7 @@ export async function monitorAndRelay(
     if (!messageSentLog) throw new Error('MessageSent event not found in receipt — wrong MessageTransmitter address or wrong tx');
 
     // ── Step 1.5: Ensure on-chain record exists (backend owns this, not the frontend wallet) ──
-    recordOnChainIfNeeded(intentId); // non-blocking, fire-and-forget
+    await recordOnChainIfNeeded(intentId); // Await to prevent "Missing recordId" race condition
 
     let [messageBytes] = ethers.AbiCoder.defaultAbiCoder().decode(['bytes'], messageSentLog.data);
     const messageHash = ethers.keccak256(messageBytes);
@@ -173,7 +177,7 @@ export async function monitorAndRelay(
 
     console.log(`[CCTP] Iris poll URL: ${pollUrl}`);
 
-    const POLL_INTERVAL_MS = 15_000; // 15s between attempts
+    const POLL_INTERVAL_MS = 5000; // 5s between attempts (Circle recommended)
     const MAX_ATTEMPTS = 160;        // ~40 min total (testnet can be slow)
 
     let attestationHex: string | null = null;

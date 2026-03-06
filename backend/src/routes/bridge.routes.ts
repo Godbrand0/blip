@@ -114,6 +114,10 @@ router.post("/retry/:intentId", async (req, res) => {
     });
   } catch (error: any) {
     console.error("Retry Error:", error.message);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 /**
  * @route GET /api/bridge/status/:intentId
  * @desc Returns current status and any available transaction hashes for an intent.

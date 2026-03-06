@@ -5,7 +5,7 @@ export const WORLD_CHAIN_DOMAIN = 14;
 
 // Base Sepolia (Chain ID: 84532)
 export const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
-export const BASE_SEPOLIA_TOKEN_MESSENGER = "0x9f3f620bd14e4b6009ed098696d744a56a644837";
+export const BASE_SEPOLIA_TOKEN_MESSENGER = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA";
 export const BASE_SEPOLIA_DOMAIN = 6;
 
 // Human Registry deployed address (World Chain Sepolia)
