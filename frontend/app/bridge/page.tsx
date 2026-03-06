@@ -801,7 +801,7 @@ function BridgeForm() {
                 onClick={reset}
                 className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider hover:scale-[1.01] transition-all"
               >
-                {relayStatus === "COMPLETED" ? "Close" : "Bridge Again"}
+                {relayStatus === "FAILED" ? "Try Again" : "Close"}
               </button>
             </div>
           </motion.div>

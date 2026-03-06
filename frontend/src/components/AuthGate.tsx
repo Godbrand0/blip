@@ -45,7 +45,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       console.log("On-chain verification found, auto-verifying session.");
       setVerified({
         nullifier_hash: "onchain_" + address,
-        verification_level: "orb", // Assume orb for registry
+        verification_level: "device",
         proof: "",
         merkle_root: "",
         action: "onchain_sync"

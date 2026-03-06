@@ -269,11 +269,34 @@ export async function monitorAndRelay(
       destSigner
     );
 
-    const tx = await messageTransmitter.receiveMessage(messageBytes, attestationHex);
-    console.log(`[CCTP] receiveMessage tx sent: ${tx.hash}`);
-    const destReceipt = await tx.wait();
-    const relayTxHash: string = destReceipt.hash;
-    console.log(`[CCTP] Relay confirmed: ${relayTxHash}`);
+    let relayTxHash: string;
+    try {
+      const tx = await messageTransmitter.receiveMessage(messageBytes, attestationHex);
+      console.log(`[CCTP] receiveMessage tx sent: ${tx.hash}`);
+      const destReceipt = await tx.wait();
+      relayTxHash = destReceipt.hash;
+      console.log(`[CCTP] Relay confirmed: ${relayTxHash}`);
+    } catch (receiveErr: any) {
+      const errMsg = (receiveErr?.message ?? '').toLowerCase();
+      const alreadyReceived =
+        errMsg.includes('nonce already used') ||
+        errMsg.includes('already used') ||
+        errMsg.includes('already received') ||
+        errMsg.includes('message has been processed') ||
+        errMsg.includes('execution reverted') && errMsg.includes('nonce');
+
+      if (!alreadyReceived) throw receiveErr; // let outer catch handle real failures
+
+      // Another relayer (e.g. Circle's auto-relayer) beat us to it — still a success
+      console.log(`[CCTP] receiveMessage reverted: message already received by another relayer. Marking COMPLETED.`);
+      await intents.updateOne(
+        { intentId },
+        { $set: { status: 'COMPLETED', completedAt: new Date(), updatedAt: new Date() } }
+      );
+      notifyFrontend('intent-completed', { intentId, baseTxHash: null });
+      updateOnChainStatus(intentId, 2, ethers.ZeroHash, CHAINS[destChainName].chainId);
+      return { status: 'SUCCESS' };
+    }
 
     // ── Step 5: Update DB to COMPLETED ────────────────────────────────────────
     await intents.updateOne(
