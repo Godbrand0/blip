@@ -125,7 +125,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
       const { finalPayload } = await MiniKit.commandsAsync.verify({
         action: action,
-        signal: address ?? "",
         verification_level: VerificationLevel.Device,
       });
 
