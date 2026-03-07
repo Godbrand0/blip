@@ -79,7 +79,7 @@ export function ChatInterface() {
     if (!walletAddress) {
       setMessages([{
         role: 'assistant',
-        content: 'I am your ChainBridge AI. How can I help you bridge assets today?',
+        content: 'Hello buddy, How can I help you blip your assets today?',
         type: 'text'
       }]);
       return;
@@ -95,7 +95,7 @@ export function ChatInterface() {
     } else {
       setMessages([{
         role: 'assistant',
-        content: 'I am your ChainBridge AI. How can I help you bridge assets today?',
+        content: 'I am blip: I am your ChainBridge AI. How can I help you bridge assets today?',
         type: 'text'
       }]);
     }

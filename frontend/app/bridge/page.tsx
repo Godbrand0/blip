@@ -34,7 +34,7 @@ const basePublicClient = createPublicClient({
     http("https://base-sepolia.gateway.tenderly.co"),
   ]),
 });
-import { ArrowRightLeft, ArrowLeft, CheckCircle, Loader2, AlertCircle, Wallet, Repeat } from "lucide-react";
+import { ArrowRightLeft, ArrowLeft, CheckCircle, Loader2, AlertCircle, Wallet, Repeat, Droplets } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useIntents } from "@/hooks/useIntents";
@@ -468,20 +468,30 @@ function BridgeForm() {
       </div>
 
       <main className="relative z-10 max-w-lg mx-auto flex flex-col p-6 pb-32">
-        {/* Header */}
-        <header className="flex items-center gap-4 mb-8 pt-4">
-          <Link
-            href="/"
-            className="w-10 h-10 bg-glass-hover border border-glass-border rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft size={18} className="text-zinc-400" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-black tracking-tighter uppercase">Bridge</h1>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-              {sourceConfig.name} → {destConfig.name}
-            </p>
+        <header className="flex items-center justify-between mb-8 pt-4">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="w-10 h-10 bg-glass-hover border border-glass-border rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+            >
+              <ArrowLeft size={18} className="text-zinc-400" />
+            </Link>
+            <div>
+              <h1 className="text-2xl font-black tracking-tighter uppercase">Bridge</h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                {sourceConfig.name} → {destConfig.name}
+              </p>
+            </div>
           </div>
+          <a
+            href="https://faucet.circle.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-2.5 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/10"
+          >
+            <Droplets size={12} />
+            USDC Faucet
+          </a>
         </header>
 
         {/* Persisted Balances & Route */}
