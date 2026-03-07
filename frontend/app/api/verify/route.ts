@@ -55,24 +55,12 @@ export async function POST(req: NextRequest) {
   console.log("=== API /verify hit ===");
   console.log("Proof received:", JSON.stringify(proof, null, 2));
 
-  if (!proof || (!proof.nullifier_hash && !proof.proof)) {
-    console.error("Invalid proof object received:", proof);
+  if (!proof) {
+    console.error("Empty proof data received");
     return NextResponse.json({ 
       success: false, 
-      error: "Invalid or empty proof data" 
+      error: "Empty proof data" 
     }, { status: 400 });
-  }
-
-  const reqBody: Record<string, string> = {
-    nullifier_hash: proof.nullifier_hash,
-    merkle_root: proof.merkle_root,
-    proof: proof.proof,
-    verification_level: proof.verification_level || "device",
-    action: action!,
-  };
-  
-  if (proof.signal_hash) {
-    reqBody.signal_hash = proof.signal_hash;
   }
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -80,16 +68,18 @@ export async function POST(req: NextRequest) {
   try {
     const targetUrl = backendUrl 
       ? `${backendUrl}/api/verify` 
-      : `https://developer.worldcoin.org/api/v2/verify/${app_id}`;
+      // V4 verify fallback (though backendUrl is definitely preferred)
+      : `https://developer.world.org/api/v4/verify/${process.env.NEXT_PUBLIC_WORLD_RP_ID}`;
 
     console.log("Proxying verification to:", targetUrl);
 
+    // Forward the FULL proof payload
     const verifyRes = await fetch(targetUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(backendUrl ? { ...proof, address: body.address } : reqBody),
+      body: JSON.stringify(backendUrl ? { ...proof, address: body.address } : proof),
     });
 
     const wldResponse = await verifyRes.json();

@@ -55,18 +55,21 @@ function Profile() {
               </>
             )}
           </div>
-          {worldIdProof && (
-            <div className="text-[10px] font-mono text-zinc-400 space-y-2 mt-4 pt-4 border-t border-glass-border">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Verification Level:</span>
-                <span className="text-indigo-400 text-right">{worldIdProof.verification_level}</span>
+          {worldIdProof && (() => {
+            const proof = worldIdProof as any;
+            return (
+              <div className="text-[10px] font-mono text-zinc-400 space-y-2 mt-4 pt-4 border-t border-glass-border">
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Verification Level:</span>
+                  <span className="text-indigo-400 text-right">{proof.verification_level ?? proof.protocol_version ?? 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Nullifier Hash:</span>
+                  <span className="truncate w-48 text-right">{proof.nullifier_hash ? `${proof.nullifier_hash.slice(0, 10)}...${proof.nullifier_hash.slice(-6)}` : 'N/A'}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Nullifier Hash:</span>
-                <span className="truncate w-48 text-right">{worldIdProof.nullifier_hash ? `${worldIdProof.nullifier_hash.slice(0, 10)}...${worldIdProof.nullifier_hash.slice(-6)}` : 'N/A'}</span>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>

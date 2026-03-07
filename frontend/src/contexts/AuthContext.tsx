@@ -8,16 +8,16 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { ISuccessResult } from "@worldcoin/idkit";
+import { type IDKitResult } from "@worldcoin/idkit";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { useAccount } from "wagmi";
 
 interface AuthContextType {
   isWorldIdVerified: boolean;
-  worldIdProof: ISuccessResult | null;
+  worldIdProof: IDKitResult | null;
   walletAddress: string | null;
   isMiniKit: boolean;
-  setVerified: (proof: ISuccessResult, walletAddress?: string) => void;
+  setVerified: (proof: IDKitResult, walletAddress?: string) => void;
   clearAuth: () => void;
 }
 
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { address } = useAccount();
   const [isMiniKit, setIsMiniKit] = useState(false);
   const [isWorldIdVerified, setIsWorldIdVerified] = useState(false);
-  const [worldIdProof, setWorldIdProof] = useState<ISuccessResult | null>(null);
+  const [worldIdProof, setWorldIdProof] = useState<IDKitResult | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   // Detect MiniKit environment robustly
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [address, isMiniKit, walletAddress]);
 
   const setVerified = useCallback(
-    (proof: ISuccessResult, newWalletAddress?: string) => {
+    (proof: IDKitResult, newWalletAddress?: string) => {
       setIsWorldIdVerified(true);
       setWorldIdProof(proof);
 

@@ -4,14 +4,15 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
-  IDKitWidget,
-  VerificationLevel,
-  ISuccessResult,
+  IDKitRequestWidget,
+  deviceLegacy,
+  type RpContext,
+  type IDKitResult,
 } from "@worldcoin/idkit";
-import { MiniKit } from "@worldcoin/minikit-js";
+import { MiniKit, VerificationLevel } from "@worldcoin/minikit-js";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { Bot, ShieldCheck, UserCheck, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useReadContract } from "wagmi";
 import { HUMAN_REGISTRY_ADDRESS, HUMAN_REGISTRY_ABI } from "@/src/config/contracts";
 import { worldchainSepolia } from "@/wagmi-config";
@@ -22,6 +23,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [verifying, setVerifying] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rpContext, setRpContext] = useState<RpContext | null>(null);
+  const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -149,22 +152,61 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleBrowserVerify = async (proof: ISuccessResult) => {
+  const handleBrowserVerify = async (result: IDKitResult) => {
     try {
-      const res = await fetch("/api/verify", {
+      const res = await fetch("/api/verify-proof", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...proof, address }),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          rp_id: rpContext!.rp_id,
+          idkitResponse: result,
+          address,
+        }),
       });
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.error || "Verification failed.");
-      if (!result.success) throw new Error("World ID verification failed.");
+      const responseData = await res.json();
+      console.log("[handleBrowserVerify] response:", responseData);
+      if (!res.ok) {
+        throw new Error("Backend verification failed");
+      }
+      if (!responseData.success) throw new Error("World ID verification failed.");
       
-      setVerified(proof);
+      // Pass the returned IDKitResult structure
+      setVerified(result as any, address || undefined);
     } catch (err) {
       console.error("Verification process failed:", err);
       throw err;
+    }
+  };
+
+  const handleOpenWidget = async () => {
+    try {
+      setVerifying(true);
+      setError(null);
+
+      const sigRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4000'}/api/rp-signature`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID }),
+      });
+
+      if (!sigRes.ok) throw new Error("Failed to fetch RP signature");
+
+      const sigData = await sigRes.json();
+      setRpContext({
+        rp_id: process.env.NEXT_PUBLIC_WORLD_RP_ID!,
+        nonce: sigData.nonce,
+        created_at: sigData.created_at,
+        expires_at: sigData.expires_at,
+        signature: sigData.sig,
+      });
+
+      setIsWidgetOpen(true);
+    } catch (err: any) {
+      console.error("Error setting up IDKit:", err);
+      setError(err.message || "Failed to initialize verification");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -255,23 +297,30 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         title="Human Check" 
         subtitle="Final security step to prevent sybil attacks."
       >
-        <IDKitWidget
-          app_id={process.env.NEXT_PUBLIC_WORLD_APP_ID as `app_${string}`}
-          action={process.env.NEXT_PUBLIC_WORLD_ACTION_ID!}
-          onSuccess={(proof) => setVerified(proof)}
-          handleVerify={handleBrowserVerify}
-          verification_level={VerificationLevel.Device}
-        >
-          {({ open }) => (
-            <button
-              onClick={open}
-              className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
-            >
-              <UserCheck size={18} />
-              Verify with Phone
-            </button>
+        <div className="w-full space-y-4">
+          {error && <p className="text-xs text-red-500 font-medium text-center">{error}</p>}
+          <button
+            onClick={handleOpenWidget}
+            disabled={verifying}
+            className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {verifying ? <Loader2 size={18} className="animate-spin" /> : <UserCheck size={18} />}
+            {verifying ? "Initializing..." : "Verify with Phone"}
+          </button>
+          {rpContext && (
+            <IDKitRequestWidget
+              app_id={process.env.NEXT_PUBLIC_WORLD_APP_ID as `app_${string}`}
+              action={process.env.NEXT_PUBLIC_WORLD_ACTION_ID!}
+              rp_context={rpContext}
+              allow_legacy_proofs={true}
+              preset={deviceLegacy()}
+              open={isWidgetOpen}
+              onOpenChange={setIsWidgetOpen}
+              onSuccess={(result) => setVerified(result as any, address || undefined)}
+              handleVerify={handleBrowserVerify}
+            />
           )}
-        </IDKitWidget>
+        </div>
       </OnboardingLayout>
     );
   }

@@ -111,32 +111,29 @@ router.post("/verify", async (req, res) => {
     }
 
     // Step 3: World ID API Verification
-    if (!proof.nullifier_hash || !proof.merkle_root || !proof.proof) {
-      return res.status(400).json({
+    // IDKit v4 sends the full IDKitResult payload. We forward it directly to the v4 verify endpoint.
+    const rp_id = process.env.WORLD_RP_ID;
+    if (!rp_id) {
+      console.error("Missing WORLD_RP_ID configuration");
+      return res.status(500).json({
         success: false,
-        error: "Missing required World ID proof fields",
+        error: "World ID configuration missing (rp_id)",
       });
     }
 
-    const body = {
-      nullifier_hash: proof.nullifier_hash,
-      merkle_root: proof.merkle_root,
-      proof: proof.proof,
-      verification_level: proof.verification_level || "device",
-      action: action,
-      signal_hash: proof.signal_hash || ""
-    };
-
-    console.log("Sending verification request to World ID API...");
+    // `proof` here contains the rest of `req.body` minus the `address` field
+    // which corresponds to the exact IDKit payload.
+    console.log(`Sending verification request to World ID v4 API for rp_id: ${rp_id}...`);
     let verifyRes;
     try {
       verifyRes = await axios.post(
-        `https://developer.world.org/api/v2/verify/${app_id}`,
-        body,
+        `https://developer.world.org/api/v4/verify/${rp_id}`,
+        proof,
       );
     } catch (apiError: any) {
       const errorData = apiError?.response?.data || {};
-      console.error("World ID API Error Detail:", JSON.stringify(errorData, null, 2));
+      const statusCode = apiError?.response?.status || 500;
+      console.error(`[World ID API] ${statusCode} response:`, JSON.stringify(errorData, null, 2));
 
       if (errorData.code === "max_verifications_reached" || errorData.code === "already_verified") {
         console.log("User has already verified for this action. Syncing...");
@@ -153,7 +150,14 @@ router.post("/verify", async (req, res) => {
           already_verified: true,
         });
       }
-      throw apiError;
+
+      // Return the World ID API error directly so the frontend can surface it
+      return res.status(statusCode).json({
+        success: false,
+        error: "World ID API rejected the proof",
+        code: errorData.code,
+        detail: errorData.detail || errorData.message || JSON.stringify(errorData),
+      });
     }
 
     if (verifyRes.status === 200) {
@@ -172,7 +176,7 @@ router.post("/verify", async (req, res) => {
         try {
           console.log(`Attempting on-chain record for ${normalizedAddress}...`);
           const provider = new ethers.JsonRpcProvider(process.env.WORLD_CHAIN_RPC);
-          const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+          const wallet = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY!, provider);
           const registry = new ethers.Contract(
             CONTRACTS.HUMAN_REGISTRY.address,
             CONTRACTS.HUMAN_REGISTRY.abi,
