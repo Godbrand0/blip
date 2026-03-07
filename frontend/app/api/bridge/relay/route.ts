@@ -47,7 +47,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, creResponse: data });
+    return NextResponse.json({
+      success: true,
+      intentId: data.intentId ?? null,
+      creResponse: data,
+    });
   } catch (error: any) {
     console.error("Bridge Proxy Error:", error.message);
     return NextResponse.json(

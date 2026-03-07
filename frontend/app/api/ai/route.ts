@@ -18,23 +18,25 @@ export async function POST(req: NextRequest) {
   try {
     const { message } = await req.json();
 
-    const systemInstruction = `You are a helpful assistant that parses user intents for cross-chain USDC transfers from World Chain to Base.
+    const systemInstruction = `You are a helpful assistant that parses user intents for cross-chain USDC transfers between World Chain and Base.
 
 Extract:
 - action: 'send'
 - amount: number
 - recipient: ethereum address (0x...) OR 'self'
-- chain: 'Base'
+- source: 'World Chain' OR 'Base' (default to 'World Chain' if not specified)
+- destination: 'World Chain' OR 'Base' (default to 'Base' if not specified)
 
 Rules:
-- Destination chain is ALWAYS Base.
 - If the user implies bridging to themselves (e.g., "bridge 10 to my wallet", "send 5 usdc", "bridge 2 to me"), set recipient to 'self'.
 - Address must start with 0x and be 42 characters long.
+- If the source is specified (e.g., "from World Chain", "on Base"), map it correctly.
+- Ensure the destination is NOT the same as the source.
 
 If you cannot parse the intent or amount, set action to 'unknown'.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: message,
       config: {
         systemInstruction: systemInstruction,
@@ -54,9 +56,13 @@ If you cannot parse the intent or amount, set action to 'unknown'.`;
               type: Type.STRING,
               description: "The 0x... ethereum address OR the literal string 'self' if the user wants to bridge to their own wallet."
             },
-            chain: { 
+            source: { 
               type: Type.STRING,
-              description: "The target blockchain (usually 'Base')."
+              description: "The source blockchain (e.g., 'World Chain' or 'Base')."
+            },
+            destination: { 
+              type: Type.STRING,
+              description: "The target blockchain (e.g., 'World Chain' or 'Base')."
             },
             message: { 
               type: Type.STRING,
