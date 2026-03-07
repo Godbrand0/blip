@@ -23,6 +23,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [verifying, setVerifying] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugPayload, setDebugPayload] = useState<string | null>(null);
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -124,11 +125,22 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
       const { finalPayload } = await MiniKit.commandsAsync.verify({
         action: action,
+        signal: address ?? "",
         verification_level: VerificationLevel.Device,
       });
 
+      const payloadStr = JSON.stringify(finalPayload, null, 2);
+      console.log("MiniKit finalPayload:", payloadStr);
+
       if (finalPayload.status === "error") {
-        setError("Verification was cancelled or failed.");
+        const code = (finalPayload as any).error_code ?? "unknown";
+        setDebugPayload(payloadStr);
+        // already_verified means the user already proved uniqueness for this action
+        if (code === "already_verified" || code === "max_verifications_reached") {
+          setVerified(finalPayload as any, address || undefined);
+          return;
+        }
+        setError(`Verification failed (${code}). Please try again.`);
         return;
       }
 
@@ -253,6 +265,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         >
           <div className="w-full space-y-4">
             {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
+            {debugPayload && (
+              <pre className="text-[9px] text-left text-yellow-300 bg-zinc-900 rounded-xl p-3 overflow-auto max-h-40 break-all whitespace-pre-wrap">
+                {debugPayload}
+              </pre>
+            )}
             <button
               onClick={handleMiniKitVerify}
               disabled={verifying}
