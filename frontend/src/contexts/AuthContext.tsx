@@ -63,13 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Restore verification state from session storage
+  // Restore wallet address from session storage
   useEffect(() => {
-    const stored = sessionStorage.getItem("blip_world_id_verified");
-    if (stored === "true") {
-      setIsWorldIdVerified(true);
-    }
-
     const storedWallet = sessionStorage.getItem("blip_wallet_address");
     if (storedWallet) {
       setWalletAddress(storedWallet);
@@ -92,10 +87,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (resolvedAddress !== walletAddress) {
       setWalletAddress(resolvedAddress);
       
+      // Reset verification state when wallet changes
+      setIsWorldIdVerified(false);
+      setWorldIdProof(null);
+
       if (resolvedAddress) {
         sessionStorage.setItem("blip_wallet_address", resolvedAddress);
 
-        // Check if this wallet was previously verified
+        // Check if this specific wallet was previously verified in this session
         const storedWorldIdProof = sessionStorage.getItem(
           `blip_world_id_${resolvedAddress}`,
         );
@@ -104,7 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const proof = JSON.parse(storedWorldIdProof);
             setWorldIdProof(proof);
             setIsWorldIdVerified(true);
-            sessionStorage.setItem("blip_world_id_verified", "true");
           } catch (error) {
             console.error("Failed to parse stored World ID proof:", error);
           }
@@ -119,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (proof: ISuccessResult, newWalletAddress?: string) => {
       setIsWorldIdVerified(true);
       setWorldIdProof(proof);
-      sessionStorage.setItem("blip_world_id_verified", "true");
 
       let addr = walletAddress;
       if (newWalletAddress) {
@@ -142,7 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsWorldIdVerified(false);
     setWorldIdProof(null);
     setWalletAddress(null);
-    sessionStorage.removeItem("blip_world_id_verified");
     sessionStorage.removeItem("blip_wallet_address");
 
     if (walletAddress) {

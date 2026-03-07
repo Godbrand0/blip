@@ -54,6 +54,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [isVerifiedOnChain, isWorldIdVerified, address, setVerified]);
 
+  // Reset checking status when address changes
+  useEffect(() => {
+    if (mounted && address) {
+      console.log("Wallet address changed, re-verifying:", address);
+      setCheckingStatus(true);
+      setError(null);
+    }
+  }, [mounted, address]);
+
   // Secondary Check: Backend Sync
   useEffect(() => {
     if (mounted && isConnected && address && !isWorldIdVerified) {
