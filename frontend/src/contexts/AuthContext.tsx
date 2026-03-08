@@ -101,8 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedWorldIdProof) {
           try {
             const proof = JSON.parse(storedWorldIdProof);
-            setWorldIdProof(proof);
-            setIsWorldIdVerified(true);
+            // Discard stale proofs that are missing required fields (cached before fix)
+            if (!proof.nullifier_hash) {
+              sessionStorage.removeItem(`blip_world_id_${resolvedAddress}`);
+            } else {
+              setWorldIdProof(proof);
+              setIsWorldIdVerified(true);
+            }
           } catch (error) {
             console.error("Failed to parse stored World ID proof:", error);
           }
