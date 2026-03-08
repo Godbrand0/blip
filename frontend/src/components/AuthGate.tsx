@@ -81,7 +81,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           const result = await res.json();
           if (result.success && result.verified) {
             console.log("User already verified according to backend.");
-            setVerified({} as any, address);
+            setVerified({
+              nullifier_hash: `onchain_${address}`,
+              verification_level: "device",
+              proof: "",
+              merkle_root: "",
+            } as any, address);
           }
         } catch (err) {
           console.error("Failed to re-check verification status via backend:", err);

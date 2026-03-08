@@ -57,15 +57,25 @@ function Profile() {
           </div>
           {worldIdProof && (() => {
             const proof = worldIdProof as any;
+            const rawLevel = proof.verification_level ?? proof.protocol_version;
+            const displayLevel = rawLevel
+              ? rawLevel.charAt(0).toUpperCase() + rawLevel.slice(1)
+              : 'N/A';
+            const rawHash = proof.nullifier_hash as string | undefined;
+            const displayHash = rawHash
+              ? rawHash.startsWith('onchain_')
+                ? `${rawHash.slice(8, 18)}...${rawHash.slice(-6)}`
+                : `${rawHash.slice(0, 10)}...${rawHash.slice(-6)}`
+              : 'N/A';
             return (
               <div className="text-[10px] font-mono text-zinc-400 space-y-2 mt-4 pt-4 border-t border-glass-border">
                 <div className="flex justify-between">
                   <span className="text-zinc-500">Verification Level:</span>
-                  <span className="text-indigo-400 text-right">{proof.verification_level ?? proof.protocol_version ?? 'N/A'}</span>
+                  <span className="text-indigo-400 text-right">{displayLevel}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500">Nullifier Hash:</span>
-                  <span className="truncate w-48 text-right">{proof.nullifier_hash ? `${proof.nullifier_hash.slice(0, 10)}...${proof.nullifier_hash.slice(-6)}` : 'N/A'}</span>
+                  <span className="truncate w-48 text-right">{displayHash}</span>
                 </div>
               </div>
             );
