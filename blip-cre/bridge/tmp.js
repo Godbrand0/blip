@@ -15631,7 +15631,7 @@ var onHttpTrigger = async (runtime2, payload) => {
         data.user,
         BigInt(data.amount),
         data.recipient,
-        16015286601757825753n
+        10344971235874465080n
       ]
     });
     const bridgeResult = evmClient.sendTransaction(runtime2, {

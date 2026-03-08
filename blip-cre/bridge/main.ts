@@ -31,7 +31,7 @@ type BridgeExecutionPayload = {
   user: string;
   amount: string;
   recipient: string;
-  ccipMessageId: string;
+  // ccipMessageId: string; // Removed as per user request (using CCTP now)
   proof: any; // World ID Proof
 };
 

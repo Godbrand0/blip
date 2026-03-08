@@ -71,7 +71,7 @@ const mockPayload = {
     intentId: "test_intent_001",
     user: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     amount: "50",
-    ccipMessageId: "msg_test_001",
+    // ccipMessageId: "msg_test_001", // Removed (using CCTP now)
     content: "This is original content about decentralized identity systems.",
     proof: {
       merkle_root: "0x1234567890abcdef",
