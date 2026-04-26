@@ -257,7 +257,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         throw new Error("Wallet authentication failed");
       }
 
-      const authPayload = result.commandPayload || result.finalPayload || result.data || result;
+      const authPayload = result.finalPayload || result.commandPayload || result.data || result;
       setDebugPayload(JSON.stringify(authPayload, null, 2));
 
       if (!authPayload || (!authPayload.message && !authPayload.siweMessage)) {
