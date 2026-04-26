@@ -27,6 +27,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -104,8 +105,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!mounted) return null; // Prevent hydration mismatch
 
+  const isWalletConnected = isConnected || (isMiniKit && !!walletAddress);
+
   // Show generic loading while checking verification status
-  if (checkingStatus && isConnected && !isWorldIdVerified) {
+  if (checkingStatus && isWalletConnected && !isWorldIdVerified) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="flex flex-col items-center space-y-6">
@@ -147,26 +150,49 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       setVerifying(true);
       setError(null);
 
-      const sigRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/rp-signature`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID }),
-      });
+      if (isMiniKit) {
+        const payload = {
+            action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID!,
+            signal: address || walletAddress || "",
+            verification_level: VerificationLevel.Orb,
+        };
+        let result: any;
+        if ((MiniKit as any).commandsAsync?.verify) {
+            result = await (MiniKit as any).commandsAsync.verify(payload);
+        } else {
+            result = await (MiniKit.commands as any).verify(payload);
+        }
+        
+        if (result.status === "error") {
+            throw new Error("World ID Verification failed in World App");
+        }
+        
+        const verifyPayload = result.commandPayload || result.finalPayload || result.data || result;
+        if (!verifyPayload) throw new Error("No verification payload received");
+        
+        await handleBrowserVerify(verifyPayload);
+      } else {
+        const sigRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/rp-signature`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID }),
+        });
 
-      if (!sigRes.ok) throw new Error("Failed to fetch RP signature");
+        if (!sigRes.ok) throw new Error("Failed to fetch RP signature");
 
-      const sigData = await sigRes.json();
-      setRpContext({
-        rp_id: process.env.NEXT_PUBLIC_WORLD_RP_ID!,
-        nonce: sigData.nonce,
-        created_at: sigData.created_at,
-        expires_at: sigData.expires_at,
-        signature: sigData.sig,
-      });
+        const sigData = await sigRes.json();
+        setRpContext({
+          rp_id: process.env.NEXT_PUBLIC_WORLD_RP_ID!,
+          nonce: sigData.nonce,
+          created_at: sigData.created_at,
+          expires_at: sigData.expires_at,
+          signature: sigData.sig,
+        });
 
-      setIsWidgetOpen(true);
+        setIsWidgetOpen(true);
+      }
     } catch (err: any) {
-      console.error("Error setting up IDKit:", err);
+      console.error("Error setting up verification:", err);
       setError(err.message || "Failed to initialize verification");
     } finally {
       setVerifying(false);
@@ -206,23 +232,84 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (!isConnected) {
+  const handleMiniKitAuth = async () => {
+    try {
+      setAuthenticating(true);
+      setError(null);
+      const res = await fetch("/api/nonce");
+      if (!res.ok) throw new Error("Failed to fetch nonce");
+      const { nonce } = await res.json();
+      
+      const payload = {
+        nonce,
+        statement: "Sign in to Blip",
+        expirationTime: new Date(Date.now() + 1000 * 60 * 60),
+      };
+
+      let result: any;
+      if ((MiniKit as any).commandsAsync?.walletAuth) {
+          result = await (MiniKit as any).commandsAsync.walletAuth(payload);
+      } else {
+          result = await (MiniKit.commands as any).walletAuth(payload);
+      }
+
+      if (result.status === "error" || result.executedWith === "fallback" || (!result.commandPayload && !result.finalPayload && !result.data)) {
+        throw new Error("Wallet authentication failed");
+      }
+
+      const authPayload = result.commandPayload || result.finalPayload || result.data;
+      const siweRes = await fetch("/api/complete-siwe", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json", }, 
+        body: JSON.stringify({ payload: authPayload, nonce }), 
+      }); 
+      
+      if (!siweRes.ok) throw new Error("SIWE Backend failed");
+      
+      const data = await siweRes.json();
+      if (!data.isValid) throw new Error("SIWE payload is invalid");
+      
+      const returnedAddress = (authPayload.address || (MiniKit as any).user?.walletAddress);
+      
+      if (returnedAddress) {
+        sessionStorage.setItem("blip_wallet_address", returnedAddress);
+        window.location.reload(); 
+      }
+    } catch(err: any) {
+      setError(err.message || "Failed to authenticate wallet");
+    } finally {
+      setAuthenticating(false);
+    }
+  };
+
+  if (!isWalletConnected) {
     return (
       <OnboardingLayout 
         title="BLIP" 
         subtitle="Initialize wallet connection to access cross-chain liquidity."
       >
-        <div className="flex justify-center w-full">
-          <ConnectButton.Custom>
-            {({ openConnectModal }) => (
-              <button
-                onClick={openConnectModal}
-                className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98]"
-              >
-                Connect Signal
-              </button>
-            )}
-          </ConnectButton.Custom>
+        <div className="flex justify-center w-full flex-col relative">
+          {error && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest text-center mb-4 absolute -top-8 w-full">{error}</p>}
+          {isMiniKit ? (
+            <button
+               onClick={handleMiniKitAuth}
+               disabled={authenticating}
+               className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98] disabled:opacity-50"
+            >
+               {authenticating ? "CONNECTING..." : "Connect Signal"}
+            </button>
+          ) : (
+            <ConnectButton.Custom>
+              {({ openConnectModal }) => (
+                <button
+                  onClick={openConnectModal}
+                  className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98]"
+                >
+                  Connect Signal
+                </button>
+              )}
+            </ConnectButton.Custom>
+          )}
         </div>
       </OnboardingLayout>
     );

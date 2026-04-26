@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let resolvedAddress = walletAddress;
     
     if (isMiniKit) {
-      const minikitAddr = (MiniKit as any).walletAddress ?? null;
+      const minikitAddr = (MiniKit as any).user?.walletAddress ?? null;
       if (minikitAddr) resolvedAddress = minikitAddr;
     } else {
       resolvedAddress = address ?? null;
