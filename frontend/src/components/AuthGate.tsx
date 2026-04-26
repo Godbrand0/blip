@@ -257,14 +257,23 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         throw new Error("Wallet authentication failed");
       }
 
-      const authPayload = result.commandPayload || result.finalPayload || result.data;
+      const authPayload = result.commandPayload || result.finalPayload || result.data || result;
+      setDebugPayload(JSON.stringify(authPayload, null, 2));
+
+      if (!authPayload || (!authPayload.message && !authPayload.siweMessage)) {
+          throw new Error("Payload missing 'message' or 'siweMessage'");
+      }
+
       const siweRes = await fetch("/api/complete-siwe", { 
         method: "POST", 
         headers: { "Content-Type": "application/json", }, 
         body: JSON.stringify({ payload: authPayload, nonce }), 
-      }); 
+      });
       
-      if (!siweRes.ok) throw new Error("SIWE Backend failed");
+      if (!siweRes.ok) {
+          const textMsg = await siweRes.text();
+          throw new Error(`SIWE Backend failed: ${siweRes.status} ${textMsg.substring(0, 50)}`);
+      }
       
       const data = await siweRes.json();
       if (!data.isValid) throw new Error(data.message || "SIWE payload is invalid");
@@ -290,6 +299,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       >
         <div className="flex justify-center w-full flex-col relative">
           {error && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest text-center mb-4 absolute -top-8 w-full">{error}</p>}
+          {debugPayload && <pre className="text-[8px] text-zinc-400 overflow-auto h-24 mb-4 p-2 bg-zinc-900 border border-zinc-800 absolute -bottom-32 w-full z-20 text-left">{debugPayload}</pre>}
           {isMiniKit ? (
             <button
                onClick={handleMiniKitAuth}
