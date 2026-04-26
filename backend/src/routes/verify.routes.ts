@@ -124,6 +124,7 @@ router.post("/verify", async (req, res) => {
 
     // Build the v4 payload from IDKit-format fields
     const v4Payload: Record<string, any> = {
+      protocol_version: "3.0",
       action: proof.action || action,
     };
 
