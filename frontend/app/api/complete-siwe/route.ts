@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
     message: payload.message || (payload as any).siweMessage,
   };
 
+  if (!payload.signature || !payload.address) {
+    return NextResponse.json({
+      status: "error",
+      isValid: false,
+      message: "Missing signature or address in the MiniKit payload. Ensure World App correctly signed the request instead of rejecting it.",
+    });
+  }
+
   try {
     const validMessage = await verifySiweMessage(normalizedPayload as any, nonce);
     return NextResponse.json({
@@ -53,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       status: "error",
       isValid: false,
-      message: error?.message || "Internal validation error",
+      message: error?.stack ? `${error.message}\n\n${error.stack}` : (error?.message || "Internal validation error"),
     });
   }
 }
