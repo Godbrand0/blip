@@ -123,22 +123,22 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const handleBrowserVerify = async (result: IDKitResult) => {
+  const handleBrowserVerify = async (verifyPayload: any) => {
     try {
       const res = await fetch("/api/verify-proof", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          rp_id: rpContext!.rp_id,
-          idkitResponse: result,
-          address,
+          rp_id: rpContext?.rp_id || process.env.NEXT_PUBLIC_WORLD_RP_ID || process.env.NEXT_PUBLIC_WORLD_APP_ID,
+          idkitResponse: verifyPayload,
+          address: address || walletAddress,
         }),
       });
 
       if (!res.ok) throw new Error("Backend verification failed");
       const responseData = await res.json();
       if (!responseData.success) throw new Error("World ID verification failed.");
-      setVerified(result as any, address || undefined);
+      setVerified(verifyPayload as any, (address || walletAddress) || undefined);
     } catch (err) {
       console.error("Verification process failed:", err);
       throw err;
