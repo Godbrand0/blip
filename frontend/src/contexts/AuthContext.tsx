@@ -19,6 +19,7 @@ interface AuthContextType {
   isMiniKit: boolean;
   setVerified: (proof: IDKitResult, walletAddress?: string) => void;
   clearAuth: () => void;
+  setWalletAddress: (address: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   isMiniKit: false,
   setVerified: (_proof, _addr) => {},
   clearAuth: () => {},
+  setWalletAddress: (_address) => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -160,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isMiniKit,
         setVerified,
         clearAuth,
+        setWalletAddress,
       }}
     >
       {children}

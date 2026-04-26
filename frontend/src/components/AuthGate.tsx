@@ -19,7 +19,7 @@ import { worldchainSepolia } from "@/wagmi-config";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isConnected, address } = useAccount();
-  const { isWorldIdVerified, isMiniKit, setVerified, walletAddress } = useAuth();
+  const { isWorldIdVerified, isMiniKit, setVerified, walletAddress, setWalletAddress } = useAuth();
   const [verifying, setVerifying] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -282,7 +282,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       
       if (returnedAddress) {
         sessionStorage.setItem("blip_wallet_address", returnedAddress);
-        window.location.reload(); 
+        setWalletAddress(returnedAddress);
       }
     } catch(err: any) {
       setError(err.message || "Failed to authenticate wallet");
