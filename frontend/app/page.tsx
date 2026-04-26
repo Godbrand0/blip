@@ -155,206 +155,182 @@ export default function HomePage() {
 
   return (
     <AuthGate>
-      <div className="min-h-[100dvh] w-full bg-black text-white selection:bg-indigo-500/30">
-        {/* Background Gradients */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px]" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/5 rounded-full blur-[120px]" />
-        </div>
-
-        <main className="relative z-10 w-full max-w-7xl mx-auto p-6 md:p-10 pb-32">
+      <div className="min-h-[100dvh] w-full bg-black text-white selection:bg-white selection:text-black">
+        <main className="w-full max-w-7xl mx-auto p-4 md:p-8">
           {/* Header */}
-          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
+          <header className="flex items-center justify-between py-8 border-b-2 border-white mb-12">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 flex items-center justify-center bg-white rounded-xl p-2 shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-                <img src="/logo.svg" alt="Blip Logo" className="w-full h-full object-contain invert" />
+              <div className="w-10 h-10 bg-white flex items-center justify-center">
+                <span className="text-black font-black text-2xl">B</span>
               </div>
-              <h1 className="text-3xl font-black tracking-tighter uppercase whitespace-nowrap text-white">Blip</h1>
+              <h1 className="text-4xl font-black tracking-tighter uppercase">Blip</h1>
             </div>
-            <div className="px-5 py-3 glass-panel rounded-xl flex items-center gap-3 border border-glass-border">
-              <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-300">
-                {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connecting...'}
-              </span>
+            <div className="flex items-center gap-6">
+              <div className="hidden md:flex items-center gap-2">
+                <div className="w-2 h-2 bg-white" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">System Live</span>
+              </div>
+              <div className="px-4 py-2 border border-white flex items-center gap-3">
+                <span className="text-xs font-black uppercase mono tracking-widest">
+                  {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'DISCONNECTED'}
+                </span>
+                <div className={`w-2 h-2 ${walletAddress ? 'bg-white' : 'bg-zinc-800'}`} />
+              </div>
             </div>
           </header>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 xl:gap-12">
-            {/* Left Column: Balance & Actions */}
-            <div className="xl:col-span-5 flex flex-col gap-6">
-              {/* Balance Card */}
-              <motion.section
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass-card p-8 relative overflow-hidden premium-glow"
-              >
-                <div className="relative z-10 flex flex-col space-y-6">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Total Net Worth (USDC)</p>
-                    <h2 className="text-5xl font-black tracking-tighter text-white">${totalUsdcVal}</h2>
-                  </div>
-
-                  <div className="w-full grid grid-cols-2 gap-3">
-                    <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col items-start gap-2 group relative">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">World Chain</span>
-                        <button
-                          onClick={() => handleAddToken(4801)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white p-1 rounded-md text-[8px] font-black uppercase tracking-widest"
-                        >
-                          + Wallet
-                        </button>
-                      </div>
-                      <p className="text-lg font-black text-white">${formattedWorldBal}</p>
-                      <div className="text-[9px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                        {formattedWorldNative} ETH
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col items-start gap-2 group relative">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Base Sepolia</span>
-                        <button
-                          onClick={() => handleAddToken(84532)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white p-1 rounded-md text-[8px] font-black uppercase tracking-widest"
-                        >
-                          + Wallet
-                        </button>
-                      </div>
-                      <p className="text-lg font-black text-white">${formattedBaseBal}</p>
-                      <div className="text-[9px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                        {formattedBaseNative} ETH
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 w-full">
-                    <button className="flex items-center justify-center gap-2 py-4 bg-white hover:bg-zinc-200 rounded-2xl transition-all active:scale-95 shadow-lg">
-                      <Wallet size={18} className="text-black" />
-                      <span className="text-xs font-black uppercase tracking-widest text-black">Deposit</span>
-                    </button>
-                    <Link href="/bridge" className="flex items-center justify-center gap-2 py-4 bg-white hover:bg-zinc-200 rounded-2xl transition-all active:scale-95 shadow-lg">
-                      <ArrowRightLeft size={18} className="text-black" />
-                      <span className="text-xs font-black uppercase tracking-widest text-black">Bridge</span>
-                    </Link>
-                  </div>
-                </div>
-              </motion.section>
-            </div>
-
-
-            {/* Right Column: Transaction History */}
-            <div className="xl:col-span-7">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 md:gap-16">
+            {/* Left Column: Asset Intelligence */}
+            <div className="xl:col-span-4 space-y-12">
               <section className="space-y-6">
-            <div className="flex items-center justify-between px-2">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                <History size={14} />
-                Recent History
-              </h3>
-              <button className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors">View All</button>
-            </div>
-
-            <div className="space-y-3">
-              {displayHistory.length === 0 ? (
-                <div className="glass-card p-10 flex flex-col items-center text-center space-y-4 border-dashed">
-                  <div className="w-12 h-12 bg-glass-hover rounded-full flex items-center justify-center">
-                    <LinkIcon size={20} className="text-zinc-600" />
-                  </div>
-                  <p className="text-xs font-medium text-zinc-500">No cross-chain transfers yet.</p>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Global Liquidity</p>
+                  <h2 className="text-7xl font-black tracking-tighter mono">
+                    ${totalUsdcVal.split('.')[0]}<span className="text-zinc-600">.{totalUsdcVal.split('.')[1]}</span>
+                  </h2>
                 </div>
-              ) : (
-                displayHistory.map((item, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="glass-card p-5 group hover:bg-glass-hover transition-all space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                          item.status === 'COMPLETED' ? 'bg-green-500/10' : 'bg-indigo-500/10'
-                        }`}>
-                          <ArrowRightLeft size={20} className={item.status === 'COMPLETED' ? 'text-green-500' : 'text-indigo-500'} />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-black">{item.amount} USDC</h4>
-                          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                            {(item as any).sourceChain === 'BASE_SEPOLIA' ? 'Base' : 'World'} → {(item as any).destChain === 'BASE_SEPOLIA' ? 'Base' : 'World'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
-                          item.status === 'COMPLETED'
-                            ? 'bg-green-500/10 text-green-500'
-                            : item.status === 'FAILED'
-                            ? 'bg-red-500/10 text-red-500'
-                            : 'bg-indigo-500/10 text-indigo-500 animate-pulse'
-                        }`}>
-                          {item.status}
-                        </span>
-                        <p className="text-[10px] text-zinc-600 mt-2 font-mono">
-                          {formatTime(
-                            item.status === 'COMPLETED'
-                              ? ((item as any).completedAt || (item as any).createdAt || (item as any).timestamp)
-                              : ((item as any).createdAt || (item as any).timestamp)
-                          )}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="flex gap-2 pt-2 border-t border-glass-border">
-                      {((item as any).sourceTxHash || (item as any).burnTxHash) && (
-                        <a 
-                          href={(item as any).sourceChain === 'BASE_SEPOLIA' 
-                            ? `https://sepolia.basescan.org/tx/${(item as any).sourceTxHash || (item as any).burnTxHash}`
-                            : `https://worldchain-sepolia.explorer.alchemy.com/tx/${(item as any).sourceTxHash || (item as any).burnTxHash}`
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-indigo-400"
-                        >
-                          <LinkIcon size={12} />
-                          Source Tx
-                        </a>
-                      )}
-                      {(item.status === 'COMPLETED' || (item as any).destTxHash || (item as any).baseTxHash) && ((item as any).destTxHash || (item as any).baseTxHash) && (
-                        <a 
-                          href={(item as any).destChain === 'WORLD_CHAIN'
-                            ? `https://worldchain-sepolia.explorer.alchemy.com/tx/${(item as any).destTxHash || (item as any).baseTxHash}`
-                            : `https://sepolia.basescan.org/tx/${(item as any).destTxHash || (item as any).baseTxHash}`
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-green-400"
-                        >
-                          <LinkIcon size={12} />
-                          Dest Tx
-                        </a>
-                      )}
-                      {item.status !== 'COMPLETED' && !(item as any).destTxHash && !(item as any).baseTxHash && (
-                        <div className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white/5 rounded-xl opacity-50 text-[9px] font-black uppercase tracking-widest text-zinc-600">
-                          <Loader2 size={12} className="animate-spin" />
-                          Relaying...
-                        </div>
-                      )}
+                <div className="space-y-4">
+                  <div className="p-6 border border-zinc-800 hover:border-white transition-colors group">
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">World Chain</span>
+                      <button 
+                        onClick={() => handleAddToken(4801)}
+                        className="text-[9px] font-black uppercase border border-zinc-800 px-2 py-0.5 hover:bg-white hover:text-black transition-all"
+                      >
+                        + Add
+                      </button>
                     </div>
-                  </motion.div>
-                ))
-              )}
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-3xl font-black mono">${formattedWorldBal}</p>
+                      <p className="text-[10px] font-bold text-zinc-500 mono">{formattedWorldNative} ETH</p>
+                    </div>
+                  </div>
+
+                  <div className="p-6 border border-zinc-800 hover:border-white transition-colors group">
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Base Sepolia</span>
+                      <button 
+                        onClick={() => handleAddToken(84532)}
+                        className="text-[9px] font-black uppercase border border-zinc-800 px-2 py-0.5 hover:bg-white hover:text-black transition-all"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-3xl font-black mono">${formattedBaseBal}</p>
+                      <p className="text-[10px] font-bold text-zinc-500 mono">{formattedBaseNative} ETH</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button className="py-5 bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 active:scale-[0.98] transition-all">
+                    Deposit
+                  </button>
+                  <Link href="/bridge" className="flex items-center justify-center py-5 border border-white text-xs font-black uppercase tracking-widest hover:bg-white hover:text-black active:scale-[0.98] transition-all">
+                    Bridge
+                  </Link>
+                </div>
+              </section>
             </div>
-          </section>
+
+            {/* Right Column: Signal History */}
+            <div className="xl:col-span-8">
+              <section className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Signal History</h3>
+                  <div className="h-[1px] flex-1 mx-6 bg-zinc-900" />
+                  <button className="text-[10px] font-black uppercase tracking-widest text-white hover:underline underline-offset-4">Archived</button>
+                </div>
+
+                <div className="space-y-px bg-zinc-900 border border-zinc-900">
+                  {displayHistory.length === 0 ? (
+                    <div className="bg-black py-20 flex flex-col items-center justify-center border border-dashed border-zinc-800">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">No active signals found</p>
+                    </div>
+                  ) : (
+                    displayHistory.map((item, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="bg-black p-6 group flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-zinc-950 transition-colors"
+                      >
+                        <div className="flex items-center gap-6">
+                          <div className={`w-8 h-8 flex items-center justify-center border ${
+                            item.status === 'COMPLETED' ? 'border-white bg-white text-black' : 'border-zinc-800 text-zinc-500'
+                          }`}>
+                            <ArrowRightLeft size={14} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <h4 className="text-xl font-black mono uppercase">{item.amount} USDC</h4>
+                              <span className={`text-[8px] font-black px-2 py-0.5 border ${
+                                item.status === 'COMPLETED' ? 'border-white' : 'border-zinc-700 animate-pulse'
+                              }`}>
+                                {item.status}
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mt-1">
+                              {(item as any).sourceChain === 'BASE_SEPOLIA' ? 'Base' : 'World'} 
+                              <span className="mx-2 text-zinc-800">→</span> 
+                              {(item as any).destChain === 'BASE_SEPOLIA' ? 'Base' : 'World'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-left md:text-right">
+                             <p className="text-[10px] text-zinc-500 font-black uppercase tracking-tighter">
+                              {formatTime(
+                                item.status === 'COMPLETED'
+                                  ? ((item as any).completedAt || (item as any).createdAt || (item as any).timestamp)
+                                  : ((item as any).createdAt || (item as any).timestamp)
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                             {((item as any).sourceTxHash || (item as any).burnTxHash) && (
+                              <a 
+                                href={(item as any).sourceChain === 'BASE_SEPOLIA' 
+                                  ? `https://sepolia.basescan.org/tx/${(item as any).sourceTxHash || (item as any).burnTxHash}`
+                                  : `https://worldchain-sepolia.explorer.alchemy.com/tx/${(item as any).sourceTxHash || (item as any).burnTxHash}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-8 h-8 flex items-center justify-center border border-zinc-800 hover:border-white text-zinc-600 hover:text-white transition-all"
+                              >
+                                <LinkIcon size={12} />
+                              </a>
+                            )}
+                             {(item.status === 'COMPLETED' || (item as any).destTxHash || (item as any).baseTxHash) && (
+                               <a 
+                                 href={(item as any).destChain === 'WORLD_CHAIN'
+                                   ? `https://worldchain-sepolia.explorer.alchemy.com/tx/${(item as any).destTxHash || (item as any).baseTxHash}`
+                                   : `https://sepolia.basescan.org/tx/${(item as any).destTxHash || (item as any).baseTxHash}`
+                                 }
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 className="w-8 h-8 flex items-center justify-center border border-zinc-800 hover:border-white text-zinc-600 hover:text-white transition-all"
+                               >
+                                 <LinkIcon size={12} />
+                               </a>
+                             )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </div>
+              </section>
             </div>
           </div>
 
-          {/* Assistant Floating Component */}
           <ChatInterface />
         </main>
       </div>
     </AuthGate>
+
   );
 }

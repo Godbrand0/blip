@@ -108,10 +108,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (checkingStatus && isConnected && !isWorldIdVerified) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 size={40} className="text-indigo-500 animate-spin" />
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest animate-pulse">
-            Verifying Identity...
+        <div className="flex flex-col items-center space-y-6">
+          <div className="w-12 h-12 border-2 border-white animate-spin flex items-center justify-center">
+             <div className="w-4 h-4 bg-white" />
+          </div>
+          <p className="text-white text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">
+            IDENTIFYING HUMAN...
           </p>
         </div>
       </div>
@@ -125,21 +127,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
     try {
       const action = process.env.NEXT_PUBLIC_WORLD_ACTION_ID!;
-
-      console.log("Triggering MiniKit verification for action:", action);
-
       const { finalPayload } = await MiniKit.commandsAsync.verify({
         action: action,
         verification_level: [VerificationLevel.Orb, VerificationLevel.Device],
       });
 
-      const payloadStr = JSON.stringify(finalPayload, null, 2);
-      console.log("MiniKit finalPayload:", payloadStr);
-
       if (finalPayload.status === "error") {
         const code = (finalPayload as any).error_code ?? "unknown";
-        setDebugPayload(payloadStr);
-        // already_verified means the user already proved uniqueness for this action
         if (code === "already_verified" || code === "max_verifications_reached") {
           setVerified(finalPayload as any, address || undefined);
           return;
@@ -180,14 +174,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         }),
       });
 
+      if (!res.ok) throw new Error("Backend verification failed");
       const responseData = await res.json();
-      console.log("[handleBrowserVerify] response:", responseData);
-      if (!res.ok) {
-        throw new Error("Backend verification failed");
-      }
       if (!responseData.success) throw new Error("World ID verification failed.");
-      
-      // Pass the returned IDKitResult structure
       setVerified(result as any, address || undefined);
     } catch (err) {
       console.error("Verification process failed:", err);
@@ -228,33 +217,32 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   // Onboarding UI Wrapper
   const OnboardingLayout = ({ title, subtitle, children }: { title: string, subtitle: string, children: React.ReactNode }) => (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-black p-6 overflow-hidden relative">
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/10 rounded-full blur-[120px]" />
-      
+    <div className="flex min-h-screen flex-col items-center justify-center bg-black p-4 md:p-6 overflow-hidden relative">
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm glass-card p-10 flex flex-col items-center text-center space-y-8 relative z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-full max-w-sm border-2 border-white p-8 md:p-12 flex flex-col items-center text-center space-y-10 relative z-10 bg-black"
       >
-        <div className="w-20 h-20 bg-indigo-600/20 rounded-3xl flex items-center justify-center premium-glow animate-float">
-          <Bot size={40} className="text-indigo-400" />
+        <div className="w-16 h-16 bg-white flex items-center justify-center">
+          <span className="text-black font-black text-4xl">B</span>
         </div>
         
-        <div className="space-y-2">
-          <h1 className="text-3xl font-black tracking-tighter uppercase whitespace-nowrap">
+        <div className="space-y-4">
+          <h1 className="text-5xl font-black tracking-tighter uppercase">
             {title}
           </h1>
-          <p className="text-zinc-400 text-sm font-medium">
+          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest leading-loose">
             {subtitle}
           </p>
         </div>
 
-        {children}
+        <div className="w-full">
+          {children}
+        </div>
         
-        <div className="pt-4 flex items-center gap-2 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+        <div className="pt-4 flex items-center gap-3 text-[9px] text-zinc-600 font-black uppercase tracking-[0.3em]">
           <ShieldCheck size={12} />
-          <span>Secured by World ID</span>
+          <span>Verified Person Protocol</span>
         </div>
       </motion.div>
     </div>
@@ -264,46 +252,40 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!isWorldIdVerified) {
       return (
         <OnboardingLayout 
-          title="Blip" 
-          subtitle="Verify your humanness to start bridging assets."
+          title="IDENTITY" 
+          subtitle="Prove uniqueness via World ID to establish secure bridging tunnel."
         >
-          <div className="w-full space-y-4">
-            {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
-            {debugPayload && (
-              <pre className="text-[9px] text-left text-yellow-300 bg-zinc-900 rounded-xl p-3 overflow-auto max-h-40 break-all whitespace-pre-wrap">
-                {debugPayload}
-              </pre>
-            )}
+          <div className="w-full space-y-6">
+            {error && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest">{error}</p>}
             <button
               onClick={handleMiniKitVerify}
               disabled={verifying}
-              className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-30"
             >
-              {verifying ? <Loader2 size={18} className="animate-spin" /> : <UserCheck size={18} />}
-              {verifying ? "Verifying..." : "Verify with World App"}
+              {verifying ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
+              {verifying ? "VERIFYING..." : "WORLD APP VERIFY"}
             </button>
           </div>
         </OnboardingLayout>
       );
     }
-    // If MiniKit is installed and verified, bypass the wagmi connection check
     return <>{children}</>;
   }
 
   if (!isConnected) {
     return (
       <OnboardingLayout 
-        title="Blip" 
-        subtitle="Connect your wallet to enter the bridge ecosystem."
+        title="BLIP" 
+        subtitle="Initialize wallet connection to access cross-chain liquidity."
       >
         <div className="flex justify-center w-full">
           <ConnectButton.Custom>
             {({ openConnectModal }) => (
               <button
                 onClick={openConnectModal}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:bg-indigo-700 shadow-xl shadow-indigo-600/20"
+                className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98]"
               >
-                Connect Wallet
+                Connect Signal
               </button>
             )}
           </ConnectButton.Custom>
@@ -315,18 +297,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (!isWorldIdVerified) {
     return (
       <OnboardingLayout 
-        title="Human Check" 
-        subtitle="Final security step to prevent sybil attacks."
+        title="SECURITY" 
+        subtitle="Zero-knowledge proof required to prevent sybil infiltration."
       >
-        <div className="w-full space-y-4">
-          {error && <p className="text-xs text-red-500 font-medium text-center">{error}</p>}
+        <div className="w-full space-y-6">
+          {error && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest text-center">{error}</p>}
           <button
             onClick={handleOpenWidget}
             disabled={verifying}
-            className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-30"
           >
-            {verifying ? <Loader2 size={18} className="animate-spin" /> : <UserCheck size={18} />}
-            {verifying ? "Initializing..." : "Verify with Phone"}
+            {verifying ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
+            {verifying ? "SYNCING..." : "WORLD ID VERIFY"}
           </button>
           {rpContext && (
             <IDKitRequestWidget
@@ -348,3 +330,4 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+

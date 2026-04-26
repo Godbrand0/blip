@@ -4,21 +4,23 @@
 :root {
   --background: #000000;
   --foreground: #ffffff;
-  --primary: #6366f1;
-  --primary-glow: rgba(99, 102, 241, 0.4);
-  --accent: #06b6d4;
-  --glass: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-hover: rgba(255, 255, 255, 0.06);
+  --surface: #0a0a0a;
+  --border: #262626;
+  --border-strong: #ffffff;
+  --primary: #ffffff;
+  --secondary: #525252;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-primary: var(--primary);
-  --color-accent: var(--accent);
+  --color-secondary: var(--secondary);
   --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 html,
@@ -32,56 +34,64 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar styling for a cleaner look */
+/* Scrollbar styling - Minimalist B&W */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 2px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--background);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--glass-border);
-  border-radius: 10px;
+  background: var(--border-strong);
 }
 
 main {
   width: 100%;
 }
 
-/* Premium Animations */
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+/* Brutalist / Minimalist UI components */
+.bw-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s ease;
 }
 
-@keyframes glow {
-  0% { box-shadow: 0 0 5px var(--primary-glow); }
-  50% { box-shadow: 0 0 20px var(--primary-glow); }
-  100% { box-shadow: 0 0 5px var(--primary-glow); }
+.bw-panel-active {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
 }
 
-.animate-float {
-  animation: float 6s ease-in-out infinite;
+.bw-button-primary {
+  background: var(--primary);
+  color: var(--background);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
 }
 
-.premium-glow {
-  animation: glow 4s ease-in-out infinite;
+.bw-button-primary:hover {
+  background: #e5e5e5;
+  transform: translateY(-1px);
 }
 
-/* Glassmorphism Classes */
-.glass-panel {
-  background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
+.bw-button-outline {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--foreground);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
 }
 
-.glass-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
+.bw-button-outline:hover {
+  background: var(--foreground);
+  color: var(--background);
 }
+
+.mono {
+  font-family: var(--font-mono);
+}
+
 
