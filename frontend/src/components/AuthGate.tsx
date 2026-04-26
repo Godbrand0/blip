@@ -19,7 +19,7 @@ import { worldchainSepolia } from "@/wagmi-config";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isConnected, address } = useAccount();
-  const { isWorldIdVerified, isMiniKit, setVerified } = useAuth();
+  const { isWorldIdVerified, isMiniKit, setVerified, walletAddress } = useAuth();
   const [verifying, setVerifying] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [error, setError] = useState<string | null>(null);
