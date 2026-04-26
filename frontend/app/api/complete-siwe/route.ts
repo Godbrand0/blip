@@ -24,8 +24,25 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  console.log("Received SIWE payload:", JSON.stringify(payload, null, 2));
+
+  if (!payload || (!payload.message && !(payload as any).siweMessage)) {
+    console.error("SIWE validation failed: Missing message in payload");
+    return NextResponse.json({
+      status: "error",
+      isValid: false,
+      message: "Missing message in payload",
+    });
+  }
+
+  // Handle potential nested or renamed message properties depending on minikit-js version or World App response
+  const normalizedPayload = {
+    ...payload,
+    message: payload.message || (payload as any).siweMessage,
+  };
+
   try {
-    const validMessage = await verifySiweMessage(payload, nonce);
+    const validMessage = await verifySiweMessage(normalizedPayload as any, nonce);
     return NextResponse.json({
       status: "success",
       isValid: validMessage.isValid,
