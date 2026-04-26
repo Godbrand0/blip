@@ -111,50 +111,48 @@ router.post("/verify", async (req, res) => {
     }
 
     // Step 3: World ID API Verification
-    // MiniKit.commands.verify returns IDKit-v1 format: { proof, nullifier_hash, merkle_root, verification_level }
-    // World ID v4 API requires a `responses` array. We transform the payload here.
+    // MiniKit.commands.verify (version 1) returns IDKit v1 format:
+    //   { proof, nullifier_hash, merkle_root, verification_level }
+    // World ID v1 API accepts this format directly at /api/v1/verify/{app_id}
+    // World ID v4 API requires a responses[] array (used only if payload is already v4 format)
+    
     const rp_id = process.env.WORLD_RP_ID;
-    if (!rp_id) {
-      console.error("Missing WORLD_RP_ID configuration");
-      return res.status(500).json({
-        success: false,
-        error: "World ID configuration missing (rp_id)",
-      });
-    }
+    const proofAction = proof.action || action;
 
-    // Build the v4 payload from IDKit-format fields
-    const v4Payload: Record<string, any> = {
-      protocol_version: "3.0",
-      action: proof.action || action,
-    };
-
-    if (proof.signal || proof.signal_hash) {
-      v4Payload.signal = proof.signal || proof.signal_hash;
-    }
+    let verifyRes;
+    let apiUrl: string;
+    let apiPayload: Record<string, any>;
 
     if (proof.responses && Array.isArray(proof.responses)) {
-      // Already in v4 format from a newer IDKit/MiniKit version
-      v4Payload.responses = proof.responses;
+      // Payload already in v4 format (newer IDKit/MiniKit version)
+      if (!rp_id) {
+        return res.status(500).json({ success: false, error: "WORLD_RP_ID missing for v4 verification" });
+      }
+      apiUrl = `https://developer.world.org/api/v4/verify/${rp_id}`;
+      apiPayload = {
+        protocol_version: "3.0",
+        action: proofAction,
+        signal: proof.signal || proof.signal_hash || "",
+        responses: proof.responses,
+      };
+      console.log(`[Step 3] Using v4 API: ${apiUrl}`);
     } else {
-      // Transform from IDKit v1 format
-      v4Payload.responses = [
-        {
-          identifier: proof.verification_level || "device",
-          nullifier: proof.nullifier_hash,
-          proof: proof.proof,
-          merkle_root: proof.merkle_root,
-        },
-      ];
+      // IDKit v1 format from MiniKit — use v1 API directly, no transformation needed
+      apiUrl = `https://developer.worldcoin.org/api/v1/verify/${app_id}`;
+      apiPayload = {
+        action: proofAction,
+        signal: proof.signal || proof.signal_hash || "",
+        proof: proof.proof,
+        nullifier_hash: proof.nullifier_hash,
+        merkle_root: proof.merkle_root,
+        verification_level: proof.verification_level || "device",
+      };
+      console.log(`[Step 3] Using v1 API (IDKit format): ${apiUrl}`);
     }
 
-    console.log(`Sending verification request to World ID v4 API for rp_id: ${rp_id}...`);
-    console.log("v4 payload:", JSON.stringify(v4Payload, null, 2));
-    let verifyRes;
+    console.log("API payload:", JSON.stringify(apiPayload, null, 2));
     try {
-      verifyRes = await axios.post(
-        `https://developer.world.org/api/v4/verify/${rp_id}`,
-        v4Payload,
-      );
+      verifyRes = await axios.post(apiUrl, apiPayload);
     } catch (apiError: any) {
       const errorData = apiError?.response?.data || {};
       const statusCode = apiError?.response?.status || 500;
