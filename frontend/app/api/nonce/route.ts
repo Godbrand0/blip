@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   // The nonce should be stored somewhere that is not tamperable by the client
   // Awaiting cookies() in Next.js 15+
   const cookieStore = await cookies();
-  cookieStore.set("siwe-nonce", nonce, { secure: true });
+  cookieStore.set("siwe-nonce", nonce, { secure: process.env.NODE_ENV === "production" });
 
   return NextResponse.json({ nonce });
 }

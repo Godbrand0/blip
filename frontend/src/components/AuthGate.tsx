@@ -267,7 +267,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (!siweRes.ok) throw new Error("SIWE Backend failed");
       
       const data = await siweRes.json();
-      if (!data.isValid) throw new Error("SIWE payload is invalid");
+      if (!data.isValid) throw new Error(data.message || "SIWE payload is invalid");
       
       const returnedAddress = (authPayload.address || (MiniKit as any).user?.walletAddress);
       

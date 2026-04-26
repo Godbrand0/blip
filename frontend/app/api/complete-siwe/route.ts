@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   const storedNonce = cookieStore.get("siwe-nonce")?.value;
 
   if (nonce !== storedNonce) {
+    console.error("SIWE validation failed: Invalid nonce");
     return NextResponse.json({
       status: "error",
       isValid: false,
@@ -31,10 +32,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     // Handle errors in validation or processing
+    console.error("SIWE validation error:", error);
     return NextResponse.json({
       status: "error",
       isValid: false,
-      message: error.message,
+      message: error?.message || "Internal validation error",
     });
   }
 }
