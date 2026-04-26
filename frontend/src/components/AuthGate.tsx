@@ -120,48 +120,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const handleMiniKitVerify = async () => {
-    if (!MiniKit.isInstalled()) return;
-    setVerifying(true);
-    setError(null);
-
-    try {
-      const action = process.env.NEXT_PUBLIC_WORLD_ACTION_ID!;
-      const { finalPayload } = await MiniKit.commandsAsync.verify({
-        action: action,
-        verification_level: [VerificationLevel.Orb, VerificationLevel.Device],
-      });
-
-      if (finalPayload.status === "error") {
-        const code = (finalPayload as any).error_code ?? "unknown";
-        if (code === "already_verified" || code === "max_verifications_reached") {
-          setVerified(finalPayload as any, address || undefined);
-          return;
-        }
-        setError(`Verification failed (${code}). Please try again.`);
-        return;
-      }
-
-      const res = await fetch("/api/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload: finalPayload, address }),
-      });
-
-      const result = await res.json();
-      if (result.success) {
-        setVerified(finalPayload as any, address || undefined);
-      } else {
-        setError(result.error || "Verification failed.");
-      }
-    } catch (err: any) {
-      console.error("MiniKit verify error:", err);
-      setError(err.message || "Verification failed.");
-    } finally {
-      setVerifying(false);
-    }
-  };
-
   const handleBrowserVerify = async (result: IDKitResult) => {
     try {
       const res = await fetch("/api/verify-proof", {
@@ -184,12 +142,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleOpenWidget = async () => {
+  const handleVerify = async () => {
     try {
       setVerifying(true);
       setError(null);
 
-      const sigRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4000'}/api/rp-signature`, {
+      const sigRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/rp-signature`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID }),
@@ -248,30 +206,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (isMiniKit) {
-    if (!isWorldIdVerified) {
-      return (
-        <OnboardingLayout 
-          title="IDENTITY" 
-          subtitle="Prove uniqueness via World ID to establish secure bridging tunnel."
-        >
-          <div className="w-full space-y-6">
-            {error && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest">{error}</p>}
-            <button
-              onClick={handleMiniKitVerify}
-              disabled={verifying}
-              className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-30"
-            >
-              {verifying ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
-              {verifying ? "VERIFYING..." : "WORLD APP VERIFY"}
-            </button>
-          </div>
-        </OnboardingLayout>
-      );
-    }
-    return <>{children}</>;
-  }
-
   if (!isConnected) {
     return (
       <OnboardingLayout 
@@ -297,18 +231,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (!isWorldIdVerified) {
     return (
       <OnboardingLayout 
-        title="SECURITY" 
-        subtitle="Zero-knowledge proof required to prevent sybil infiltration."
+        title={isMiniKit ? "IDENTITY" : "SECURITY"} 
+        subtitle={isMiniKit ? "Prove uniqueness via World ID to establish secure bridging tunnel." : "Zero-knowledge proof required to prevent sybil infiltration."}
       >
         <div className="w-full space-y-6">
           {error && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest text-center">{error}</p>}
           <button
-            onClick={handleOpenWidget}
+            onClick={handleVerify}
             disabled={verifying}
             className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-30"
           >
             {verifying ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
-            {verifying ? "SYNCING..." : "WORLD ID VERIFY"}
+            {verifying ? "SYNCING..." : (isMiniKit ? "WORLD APP VERIFY" : "WORLD ID VERIFY")}
           </button>
           {rpContext && (
             <IDKitRequestWidget

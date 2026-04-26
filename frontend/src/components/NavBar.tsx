@@ -73,21 +73,21 @@ export function NavBar() {
   if (!isConnected || !isWorldIdVerified) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-glass-border bg-black/90 backdrop-blur-md md:top-0 md:bottom-auto md:border-t-0 md:border-b">
-      <div className="mx-auto flex max-w-7xl items-center justify-around md:justify-end md:gap-10 py-3 md:py-4 px-6">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-black md:top-0 md:bottom-auto md:border-t-0 md:border-b-2">
+      <div className="mx-auto flex max-w-7xl items-center justify-around md:justify-end md:gap-16 py-4 px-8">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex md:flex-row flex-col items-center gap-2 md:px-4 py-1 text-xs font-black uppercase tracking-widest transition-all active:scale-95 ${
-                isActive ? "text-white" : "text-zinc-500 hover:text-white"
+              className={`flex md:flex-row flex-col items-center gap-3 md:px-6 py-2 text-[10px] font-black uppercase tracking-[0.3em] transition-all active:scale-95 border-b-2 ${
+                isActive ? "text-white border-white" : "text-zinc-600 border-transparent hover:text-white"
               }`}
             >
               <div
                 className={`transition-colors ${
-                  isActive ? "text-white" : "text-zinc-500"
+                  isActive ? "text-white" : "text-zinc-600"
                 }`}
               >
                 {item.icon}

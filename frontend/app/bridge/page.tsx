@@ -461,25 +461,22 @@ function BridgeForm() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full bg-black text-white selection:bg-indigo-500/30">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/5 rounded-full blur-[120px]" />
-      </div>
-
+    <div className="min-h-[100dvh] w-full bg-black text-white selection:bg-white selection:text-black">
+      {/* Pure B&W background */}
+      
       <main className="relative z-10 w-full max-w-3xl mx-auto p-6 md:p-10 pb-32">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-          <div className="flex items-center gap-4">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12 border-b-2 border-white pb-8">
+          <div className="flex items-center gap-6">
             <Link
               href="/"
-              className="w-10 h-10 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors"
+              className="w-12 h-12 border-2 border-white flex items-center justify-center hover:bg-white hover:text-black transition-all active:scale-95"
             >
-              <ArrowLeft size={18} className="text-white" />
+              <ArrowLeft size={20} />
             </Link>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter uppercase text-white">Bridge</h1>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                {sourceConfig.name} → {destConfig.name}
+              <h1 className="text-5xl font-black tracking-tighter uppercase leading-none">Bridge</h1>
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500 mt-2">
+                QUANTUM TUNNEL ACTIVE
               </p>
             </div>
           </div>
@@ -487,354 +484,270 @@ function BridgeForm() {
             href="https://faucet.circle.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-zinc-200 text-black rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg"
+            className="flex items-center gap-2 px-6 py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest transition-all hover:bg-zinc-200 active:scale-95 border-2 border-white"
           >
             <Droplets size={14} />
             USDC Faucet
           </a>
         </header>
 
-        {/* Persisted Balances & Route */}
-        <div className="space-y-4 mb-6">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="glass-panel border border-glass-border rounded-2xl p-4 flex flex-col gap-1 relative group">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                {sourceConfig.name}
-              </span>
-              <span className="text-sm font-black text-white">
-                {sourceUsdcBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
-              </span>
-              <button 
-                onClick={() => handleAddToken(sourceChainId)}
-                className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-black uppercase tracking-widest text-indigo-400"
-              >
-                + Wallet
-              </button>
+        {/* Direction Switcher - Brutalist Grid */}
+        <div className="relative mb-12">
+          <div className="grid grid-cols-2 gap-px bg-white border-2 border-white">
+            <div className="bg-black p-8 flex flex-col gap-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Origin</span>
+              <span className="text-2xl font-black uppercase tracking-tighter">{sourceConfig.name}</span>
+              <div className="mt-4 flex flex-col gap-1">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Available Allocation:</span>
+                <span className="text-sm font-black mono">{sourceUsdcBalance.toFixed(2)} USDC</span>
+              </div>
             </div>
-            <div className="glass-panel border border-glass-border rounded-2xl p-4 flex flex-col gap-1 relative group">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                {destConfig.name}
-              </span>
-              <span className="text-sm font-black text-white">
-                {destUsdcBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
-              </span>
-              <button 
-                onClick={() => handleAddToken(destChainId)}
-                className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-black uppercase tracking-widest text-indigo-400"
-              >
-                + Wallet
-              </button>
+            <div className="bg-black p-8 flex flex-col gap-3 border-l-2 border-white">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Destination</span>
+              <span className="text-2xl font-black uppercase tracking-tighter">{destConfig.name}</span>
+              <div className="mt-4 flex flex-col gap-1">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Target Balance:</span>
+                <span className="text-sm font-black mono">{destUsdcBalance.toFixed(2)} USDC</span>
+              </div>
             </div>
           </div>
-
-          <div className="relative glass-panel border border-glass-border rounded-2xl p-4 flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-            <div className="flex flex-col gap-1">
-              <span className="text-zinc-500">From</span>
-              <span className="text-white">{sourceConfig.name}</span>
-            </div>
-            
-            <button 
-              onClick={handleSwitchDirection}
-              disabled={step !== 'input'}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-indigo-600 border-4 border-black flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-20 disabled:opacity-50 disabled:grayscale"
-            >
-              <Repeat size={14} className="text-white" />
-            </button>
-
-            <div className="flex flex-col gap-1 text-right">
-              <span className="text-zinc-500">To</span>
-              <span className="text-white">{destConfig.name}</span>
-            </div>
-          </div>
+          
+          <button 
+            onClick={handleSwitchDirection}
+            disabled={step !== 'input'}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white text-black border-4 border-black flex items-center justify-center hover:rotate-180 transition-all duration-500 z-20 disabled:opacity-50"
+          >
+            <Repeat size={20} strokeWidth={3} />
+          </button>
         </div>
 
         {step === "input" && (
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-5"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="space-y-10"
           >
-            {/* Amount */}
-            <div className="glass-card p-6 space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                Amount (USDC)
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  min="0"
-                  className="w-full bg-transparent text-3xl font-black text-white placeholder:text-zinc-700 outline-none pr-16"
-                />
-                <button
-                  onClick={() => setAmount(Math.max(0, sourceUsdcBalance - 0.1).toFixed(6))}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors"
-                >
-                  Max (inc. fee)
-                </button>
+            {/* Input Panel */}
+            <div className="border-2 border-white p-10 space-y-10">
+              <div className="space-y-6">
+                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+                  Transaction Magnitude (USDC)
+                </label>
+                <div className="relative border-b-4 border-white pb-4">
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    min="0"
+                    className="w-full bg-transparent text-7xl font-black text-white placeholder:text-zinc-900 outline-none mono"
+                  />
+                  <button
+                    onClick={() => setAmount(Math.max(0, sourceUsdcBalance - 0.1).toFixed(6))}
+                    className="absolute right-0 bottom-4 text-[10px] font-black uppercase tracking-widest bg-white text-black px-4 py-2 hover:invert transition-all"
+                  >
+                    MAX CAP
+                  </button>
+                </div>
+                {(parsedAmount + 0.1) > sourceUsdcBalance && (
+                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] animate-pulse">
+                    [WARNING] INSUFFICIENT COLLATERAL (0.10 REQUIRED)
+                  </p>
+                )}
               </div>
-              {(parsedAmount + 0.1) > sourceUsdcBalance && (
-                <p className="text-[10px] text-red-400 font-bold">Exceeds balance (requires 0.1 USDC fee)</p>
-              )}
+
+              <div className="space-y-6 pt-10 border-t-2 border-zinc-900">
+                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+                  Recipient Identity Probe
+                </label>
+                <div className="flex gap-px bg-white border border-white">
+                  <button
+                    onClick={() => setUseMyWallet(true)}
+                    className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                      useMyWallet ? "bg-white text-black" : "bg-black text-zinc-500 hover:text-white"
+                    }`}
+                  >
+                    Current Proxy
+                  </button>
+                  <button
+                    onClick={() => setUseMyWallet(false)}
+                    className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                      !useMyWallet ? "bg-white text-black" : "bg-black text-zinc-500 hover:text-white"
+                    }`}
+                  >
+                    Custom Target
+                  </button>
+                </div>
+
+                {!useMyWallet && (
+                  <input
+                    type="text"
+                    value={customRecipient}
+                    onChange={(e) => setCustomRecipient(e.target.value)}
+                    placeholder="0x..."
+                    className="w-full bg-zinc-950 border-2 border-white px-6 py-5 text-sm font-mono text-white placeholder:text-zinc-800 outline-none focus:bg-black transition-all"
+                  />
+                )}
+              </div>
             </div>
 
-            {/* Recipient */}
-            <div className="glass-card p-6 space-y-4">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                Recipient on Base Sepolia
-              </label>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setUseMyWallet(true)}
-                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                    useMyWallet
-                      ? "bg-indigo-600 text-white"
-                      : "bg-glass-hover border border-glass-border text-zinc-400 hover:border-indigo-500/30"
-                  }`}
-                >
-                  <Wallet size={12} />
-                  My Wallet
-                </button>
-                <button
-                  onClick={() => setUseMyWallet(false)}
-                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                    !useMyWallet
-                      ? "bg-indigo-600 text-white"
-                      : "bg-glass-hover border border-glass-border text-zinc-400 hover:border-indigo-500/30"
-                  }`}
-                >
-                  Custom
-                </button>
+            {/* Metrics Checklist */}
+            <div className="bg-zinc-950 border-2 border-white p-8 space-y-6 border-l-8">
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.3em]">
+                <span className="text-zinc-600">Protocol Service Fee</span>
+                <span className="text-white">0.10 USDC</span>
               </div>
-
-              {useMyWallet ? (
-                <p className="text-xs font-mono text-zinc-500 truncate">{walletAddress}</p>
-              ) : (
-                <input
-                  type="text"
-                  value={customRecipient}
-                  onChange={(e) => setCustomRecipient(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full bg-glass-hover border border-glass-border rounded-xl px-4 py-3 text-xs font-mono text-white placeholder:text-zinc-700 outline-none focus:border-indigo-500/50 transition-colors"
-                />
-              )}
-            </div>
-
-            {/* Fee Breakdown */}
-            <div className="glass-panel border border-glass-border rounded-2xl p-5 space-y-3">
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                <span className="text-zinc-500">CCTP Bridge Fee</span>
-                <span className="text-indigo-400">0.10 USDC</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                <span className="text-zinc-500">Network Gas (Est.)</span>
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.3em]">
+                <span className="text-zinc-600">Network Gas Friction</span>
                 <span className="text-white">&lt; 0.001 ETH</span>
               </div>
-              <div className="pt-2 mt-2 border-t border-glass-border flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                <span className="text-zinc-400">Total to be Deducted</span>
-                <span className="text-white">
-                  {(parsedAmount + 0.1).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
-                </span>
+              <div className="pt-6 border-t border-zinc-800 flex justify-between items-center text-[11px] font-black uppercase tracking-[0.4em]">
+                <span className="text-zinc-400">Net Deduction</span>
+                <span className="text-white">{(parsedAmount + 0.1).toFixed(2)} USDC</span>
               </div>
             </div>
 
             <button
               onClick={handleBridge}
               disabled={!isValid}
-              className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-xl"
+              className="group relative w-full py-8 bg-white text-black font-black text-2xl uppercase tracking-[0.3em] transition-all hover:bg-black hover:text-white border-4 border-white active:scale-[0.98] disabled:opacity-20 disabled:cursor-not-allowed overflow-hidden"
             >
-              Bridge via CCTP
+              <span className="relative z-10 transition-transform group-hover:scale-110 block">
+                Execute Bridge Intent
+              </span>
             </button>
           </motion.div>
         )}
 
         {step === "approving" && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-card p-12 flex flex-col items-center text-center space-y-8 relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-indigo-600/5 animate-pulse" />
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
-              <Wallet className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-400" size={24} />
+          <div className="border-4 border-white p-16 flex flex-col items-center text-center space-y-10 bg-zinc-950">
+            <div className="w-24 h-24 border-8 border-white border-t-transparent animate-spin flex items-center justify-center">
+               <div className="w-4 h-4 bg-white" />
             </div>
-            <div className="space-y-3 relative">
-              <h2 className="text-2xl font-black tracking-tight uppercase">Action Required</h2>
-              <p className="text-xs text-zinc-400 font-medium max-w-[200px] mx-auto leading-relaxed">
-                Please confirm the signature in your wallet to continue.
+            <div className="space-y-6">
+              <h2 className="text-4xl font-black uppercase tracking-[0.1em]">Identity Lock</h2>
+              <p className="text-[11px] text-zinc-500 font-black uppercase tracking-[0.4em] leading-relaxed max-w-sm">
+                Awaiting cryptographic authorization from your local terminal.
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {step === "bridging" && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-card p-12 flex flex-col items-center text-center space-y-8"
-          >
-            <div className="relative w-24 h-24">
-              <svg className="w-full h-full -rotate-90">
-                <circle
-                  cx="48"
-                  cy="48"
-                  r="44"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  className="text-white/5"
-                />
-                <circle
-                  cx="48"
-                  cy="48"
-                  r="44"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  strokeDasharray="276"
-                  className="text-indigo-500 animate-[dash_2s_ease-in-out_infinite]"
-                  style={{
-                    strokeDashoffset: 100,
-                  }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <ArrowRightLeft className="text-indigo-400 animate-pulse" size={24} />
-              </div>
+          <div className="border-4 border-white p-16 flex flex-col items-center text-center space-y-10 bg-black">
+            <div className="w-full h-4 bg-zinc-900 border-2 border-white relative overflow-hidden">
+              <motion.div 
+                initial={{ left: "-100%" }}
+                animate={{ left: "100%" }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-y-0 w-1/3 bg-white"
+              />
             </div>
-            
-            <div className="space-y-3">
-              <h2 className="text-2xl font-black tracking-tight uppercase">Bridging...</h2>
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-zinc-400 font-medium">Sending your USDC to the relay.</p>
-                {bridgeTxHash && (
-                   <p className="text-[10px] font-mono text-indigo-400/60 truncate max-w-[200px] mx-auto">{bridgeTxHash}</p>
-                )}
-              </div>
+            <div className="space-y-6">
+              <h2 className="text-4xl font-black uppercase tracking-[0.1em]">Tunneling</h2>
+              <p className="text-[11px] text-zinc-500 font-black uppercase tracking-[0.4em] leading-relaxed">
+                Assets migrating through cross-chain liquidity layers.
+              </p>
+              {bridgeTxHash && (
+                <div className="mt-8 p-4 border border-zinc-800 bg-zinc-950">
+                   <p className="text-[9px] font-mono text-zinc-400 break-all select-all">{bridgeTxHash}</p>
+                </div>
+              )}
             </div>
-          </motion.div>
+          </div>
         )}
 
         {step === "done" && (
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-6"
+            className="space-y-8"
           >
-            {/* Main Success Card */}
-            <div className="glass-card p-10 flex flex-col items-center text-center space-y-6 relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-green-500/50 to-transparent" />
-              
+            <div className="border-4 border-white p-16 flex flex-col items-center text-center space-y-12 bg-black">
               {relayStatus === "COMPLETED" ? (
-                <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-2">
-                  <CheckCircle size={32} className="text-green-400" />
+                <div className="w-24 h-24 bg-white text-black flex items-center justify-center">
+                  <CheckCircle size={48} strokeWidth={3} />
                 </div>
               ) : relayStatus === "FAILED" ? (
-                <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-2">
-                  <AlertCircle size={32} className="text-red-400" />
+                <div className="w-24 h-24 border-4 border-white flex items-center justify-center">
+                  <AlertCircle size={48} strokeWidth={3} />
                 </div>
               ) : (
-                <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-2">
-                  <Loader2 size={32} className="text-indigo-400 animate-spin" />
+                <div className="w-24 h-24 border-8 border-white border-t-transparent animate-spin flex items-center justify-center">
+                   <div className="w-4 h-4 bg-white" />
                 </div>
               )}
   
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black tracking-tight uppercase">
-                  {relayStatus === "COMPLETED" ? "Bridge Success!" : relayStatus === "FAILED" ? "Bridge Failed" : "Bridging in Progress..."}
+              <div className="space-y-6">
+                <h2 className="text-5xl font-black uppercase tracking-tighter">
+                  {relayStatus === "COMPLETED" ? "SUCCESS" : relayStatus === "FAILED" ? "FAILED" : "PENDING"}
                 </h2>
-                <p className="text-xs text-zinc-400 font-medium">
+                <p className="text-[11px] text-zinc-500 font-black uppercase tracking-[0.3em] leading-loose max-w-sm">
                   {relayStatus === "COMPLETED" 
-                    ? `Your ${parsedAmount} USDC has successfully arrived on ${destConfig.name}.`
+                    ? `Quantized assets successfully reconstructed on ${destConfig.name}.`
                     : relayStatus === "FAILED"
                     ? errorMsg
-                    : "CCTP is relaying your USDC. This usually takes 5-10 minutes."}
+                    : "CCTP handshake established. Finality achieved in 5-10m."}
                 </p>
               </div>
 
-              {/* Transaction Summary (Only on Success) */}
-              {relayStatus === "COMPLETED" && (
-                <div className="w-full space-y-3 pt-6 border-t border-glass-border">
-                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                    <span className="text-zinc-500">Amount Sent</span>
-                    <span className="text-white">{parsedAmount} USDC</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                    <span className="text-zinc-500">CCTP Bridge Fee</span>
-                    <span className="text-indigo-400">0.10 USDC</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                    <span className="text-zinc-500">Network Gas Fee</span>
-                    <span className="text-zinc-400">&lt; 0.001 ETH</span>
-                  </div>
-                </div>
-              )}
-  
-              <div className="w-full flex flex-col gap-3">
+              <div className="w-full flex flex-col gap-2">
                 {bridgeTxHash && (
                   <a
                     href={`${sourceConfig.explorer}/tx/${bridgeTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors group"
+                    className="flex items-center justify-between p-6 border-2 border-white hover:bg-white hover:text-black transition-all group"
                   >
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400">Source: {sourceConfig.name}</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1">
-                      View Tx <ArrowRightLeft size={10} className="rotate-45" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 group-hover:text-black">Source Node</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 underline">
+                       EXPLORE
                     </span>
                   </a>
                 )}
-                {destTxHash ? (
+                {destTxHash && (
                   <a
                     href={`${destConfig.explorer}/tx/${destTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors group"
+                    className="flex items-center justify-between p-6 border-2 border-white hover:bg-white hover:text-black transition-all group"
                   >
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400">Dest: {destConfig.name}</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1">
-                      View Tx <ArrowRightLeft size={10} className="rotate-45" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 group-hover:text-black">Target Node</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 underline">
+                       EXPLORE
                     </span>
                   </a>
-                ) : relayStatus !== "FAILED" && (
-                  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl opacity-50">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dest: {destConfig.name}</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Pending...</span>
-                  </div>
                 )}
               </div>
-  
+
               <button
                 onClick={reset}
-                className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider hover:scale-[1.01] transition-all"
+                className="w-full py-6 bg-white text-black font-black text-[12px] uppercase tracking-[0.5em] hover:bg-zinc-200 transition-all border-4 border-white"
               >
-                {relayStatus === "FAILED" ? "Try Again" : "Close"}
+                RETURN TO COMMAND
               </button>
             </div>
           </motion.div>
         )}
 
         {step === "error" && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-10 flex flex-col items-center text-center space-y-6"
-          >
-            <AlertCircle size={48} className="text-red-400" />
-            <div className="space-y-2">
-              <h2 className="text-xl font-black tracking-tight uppercase">Bridge Failed</h2>
-              <p className="text-xs text-red-400 font-mono break-all">{errorMsg}</p>
-            </div>
-            <button
-              onClick={reset}
-              className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider hover:scale-[1.01] transition-all"
-            >
-              Try Again
-            </button>
-          </motion.div>
+           <div className="border-4 border-white bg-black p-16 flex flex-col items-center text-center space-y-10">
+             <div className="text-white">
+               <AlertCircle size={64} strokeWidth={3} />
+             </div>
+             <div className="space-y-6">
+               <h2 className="text-4xl font-black uppercase tracking-tighter">PROTOCOL ERROR</h2>
+               <div className="bg-zinc-950 p-6 border border-zinc-800">
+                 <p className="text-[11px] text-zinc-500 font-mono break-all leading-relaxed">{errorMsg}</p>
+               </div>
+             </div>
+             <button
+                onClick={reset}
+                className="w-full py-6 bg-white text-black text-[11px] font-black uppercase tracking-[0.4em] hover:bg-zinc-200 transition-all"
+              >
+                ABORT & RE-INITIALIZE
+              </button>
+           </div>
         )}
       </main>
     </div>
