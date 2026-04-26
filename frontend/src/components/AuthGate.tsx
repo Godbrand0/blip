@@ -135,7 +135,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         }),
       });
 
-      if (!res.ok) throw new Error("Backend verification failed");
+      if (!res.ok) {
+        let errMsg = "Backend verification failed";
+        try {
+          const errData = await res.json();
+          errMsg = errData.detail || errData.error || errData.message || errMsg;
+        } catch {
+          errMsg = await res.text() || errMsg;
+        }
+        throw new Error(`Verification rejected: ${errMsg.substring(0, 100)}`);
+      }
       const responseData = await res.json();
       if (!responseData.success) throw new Error("World ID verification failed.");
       setVerified(verifyPayload as any, (address || walletAddress) || undefined);
@@ -167,7 +176,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             throw new Error("World ID Verification failed in World App");
         }
         
-        const verifyPayload = result.commandPayload || result.finalPayload || result.data || result;
+        const verifyPayload = result.finalPayload || result.commandPayload || result.data || result;
         if (!verifyPayload) throw new Error("No verification payload received");
         
         await handleBrowserVerify(verifyPayload);
