@@ -154,7 +154,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         const payload = {
             action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID!,
             signal: address || walletAddress || "",
-            verification_level: VerificationLevel.Orb,
+            verification_level: VerificationLevel.Device,
         };
         let result: any;
         if ((MiniKit as any).commandsAsync?.verify) {
