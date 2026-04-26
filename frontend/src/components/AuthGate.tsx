@@ -176,8 +176,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             throw new Error("World ID Verification failed in World App");
         }
         
-        const verifyPayload = result.finalPayload || result.commandPayload || result.data || result;
-        if (!verifyPayload) throw new Error("No verification payload received");
+        const basePayload = result.finalPayload || result.commandPayload || result.data || result;
+        if (!basePayload) throw new Error("No verification payload received");
+        
+        const verifyPayload = {
+            ...basePayload,
+            action: process.env.NEXT_PUBLIC_WORLD_ACTION_ID!,
+            signal: address || walletAddress || "",
+        };
         
         await handleBrowserVerify(verifyPayload);
       } else {
