@@ -467,17 +467,17 @@ function BridgeForm() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/5 rounded-full blur-[120px]" />
       </div>
 
-      <main className="relative z-10 max-w-lg mx-auto flex flex-col p-6 pb-32">
-        <header className="flex items-center justify-between mb-8 pt-4">
+      <main className="relative z-10 w-full max-w-3xl mx-auto p-6 md:p-10 pb-32">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="w-10 h-10 bg-glass-hover border border-glass-border rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+              className="w-10 h-10 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors"
             >
-              <ArrowLeft size={18} className="text-zinc-400" />
+              <ArrowLeft size={18} className="text-white" />
             </Link>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter uppercase">Bridge</h1>
+              <h1 className="text-2xl font-black tracking-tighter uppercase text-white">Bridge</h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                 {sourceConfig.name} → {destConfig.name}
               </p>
@@ -487,9 +487,9 @@ function BridgeForm() {
             href="https://faucet.circle.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-2.5 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/10"
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-zinc-200 text-black rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg"
           >
-            <Droplets size={12} />
+            <Droplets size={14} />
             USDC Faucet
           </a>
         </header>
@@ -643,7 +643,7 @@ function BridgeForm() {
             <button
               onClick={handleBridge}
               disabled={!isValid}
-              className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-wider transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-xl"
             >
               Bridge via CCTP
             </button>

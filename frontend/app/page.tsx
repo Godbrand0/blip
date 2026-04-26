@@ -162,86 +162,92 @@ export default function HomePage() {
           <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/5 rounded-full blur-[120px]" />
         </div>
 
-        <main className="relative z-10 max-w-lg mx-auto flex flex-col p-6 pb-32">
+        <main className="relative z-10 w-full max-w-7xl mx-auto p-6 md:p-10 pb-32">
           {/* Header */}
-          <header className="flex items-center justify-between mb-8 pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 flex items-center justify-center">
-                <img src="/logo.svg" alt="Blip Logo" className="w-full h-full object-contain drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 flex items-center justify-center bg-white rounded-xl p-2 shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                <img src="/logo.svg" alt="Blip Logo" className="w-full h-full object-contain invert" />
               </div>
-              <h1 className="text-2xl font-black tracking-tighter uppercase whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">Blip</h1>
+              <h1 className="text-3xl font-black tracking-tighter uppercase whitespace-nowrap text-white">Blip</h1>
             </div>
-            <div className="px-4 py-2 glass-panel rounded-full flex items-center gap-2 border border-glass-border">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            <div className="px-5 py-3 glass-panel rounded-xl flex items-center gap-3 border border-glass-border">
+              <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+              <span className="text-xs font-black uppercase tracking-widest text-zinc-300">
                 {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connecting...'}
               </span>
             </div>
           </header>
 
-          {/* Balance Card */}
-          <motion.section 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-8 mb-8 relative overflow-hidden premium-glow"
-          >
-            <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Total Net Worth (USDC)</p>
-                <h2 className="text-5xl font-black tracking-tighter">${totalUsdcVal}</h2>
-              </div>
-
-              <div className="w-full grid grid-cols-2 gap-3">
-                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col items-start gap-2 group relative">
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">World Chain</span>
-                    <button 
-                      onClick={() => handleAddToken(4801)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400 p-1 rounded-md text-[8px] font-black uppercase tracking-widest"
-                    >
-                      + Wallet
-                    </button>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 xl:gap-12">
+            {/* Left Column: Balance & Actions */}
+            <div className="xl:col-span-5 flex flex-col gap-6">
+              {/* Balance Card */}
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card p-8 relative overflow-hidden premium-glow"
+              >
+                <div className="relative z-10 flex flex-col space-y-6">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Total Net Worth (USDC)</p>
+                    <h2 className="text-5xl font-black tracking-tighter text-white">${totalUsdcVal}</h2>
                   </div>
-                  <p className="text-lg font-black">${formattedWorldBal}</p>
-                  <div className="text-[9px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                    {formattedWorldNative} ETH
+
+                  <div className="w-full grid grid-cols-2 gap-3">
+                    <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col items-start gap-2 group relative">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">World Chain</span>
+                        <button
+                          onClick={() => handleAddToken(4801)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white p-1 rounded-md text-[8px] font-black uppercase tracking-widest"
+                        >
+                          + Wallet
+                        </button>
+                      </div>
+                      <p className="text-lg font-black text-white">${formattedWorldBal}</p>
+                      <div className="text-[9px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                        {formattedWorldNative} ETH
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col items-start gap-2 group relative">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Base Sepolia</span>
+                        <button
+                          onClick={() => handleAddToken(84532)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white p-1 rounded-md text-[8px] font-black uppercase tracking-widest"
+                        >
+                          + Wallet
+                        </button>
+                      </div>
+                      <p className="text-lg font-black text-white">${formattedBaseBal}</p>
+                      <div className="text-[9px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                        {formattedBaseNative} ETH
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 w-full">
+                    <button className="flex items-center justify-center gap-2 py-4 bg-white hover:bg-zinc-200 rounded-2xl transition-all active:scale-95 shadow-lg">
+                      <Wallet size={18} className="text-black" />
+                      <span className="text-xs font-black uppercase tracking-widest text-black">Deposit</span>
+                    </button>
+                    <Link href="/bridge" className="flex items-center justify-center gap-2 py-4 bg-white hover:bg-zinc-200 rounded-2xl transition-all active:scale-95 shadow-lg">
+                      <ArrowRightLeft size={18} className="text-black" />
+                      <span className="text-xs font-black uppercase tracking-widest text-black">Bridge</span>
+                    </Link>
                   </div>
                 </div>
-
-                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col items-start gap-2 group relative">
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Base Sepolia</span>
-                    <button 
-                      onClick={() => handleAddToken(84532)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400 p-1 rounded-md text-[8px] font-black uppercase tracking-widest"
-                    >
-                      + Wallet
-                    </button>
-                  </div>
-                  <p className="text-lg font-black">${formattedBaseBal}</p>
-                  <div className="text-[9px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                    {formattedBaseNative} ETH
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <button className="flex items-center justify-center gap-2 py-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all active:scale-95 group">
-                  <Wallet size={16} className="text-indigo-400" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Deposit</span>
-                </button>
-                <Link href="/bridge" className="flex items-center justify-center gap-2 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl transition-all active:scale-95 group">
-                  <ArrowRightLeft size={16} className="text-white" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Bridge</span>
-                </Link>
-              </div>
+              </motion.section>
             </div>
-          </motion.section>
 
-          {/* Transaction History */}
-          <section className="space-y-6">
+
+            {/* Right Column: Transaction History */}
+            <div className="xl:col-span-7">
+              <section className="space-y-6">
             <div className="flex items-center justify-between px-2">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
                 <History size={14} />
@@ -342,6 +348,8 @@ export default function HomePage() {
               )}
             </div>
           </section>
+            </div>
+          </div>
 
           {/* Assistant Floating Component */}
           <ChatInterface />

@@ -30,7 +30,7 @@ export default function RootLayout({
     <html lang="en">
       <MiniKitProvider props={{ appId: process.env.NEXT_PUBLIC_WORLD_APP_ID! }}>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen pb-20`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen pb-20 md:pb-0 md:pt-20 bg-black text-white`}
         >
           <Providers>
             {children}

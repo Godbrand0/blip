@@ -17,24 +17,26 @@ function Profile() {
   const { isWorldIdVerified, worldIdProof } = useAuth();
 
   return (
-    <div className="min-h-screen bg-black p-6 text-white min-h-[100dvh] w-full bg-black text-white selection:bg-indigo-500/30">
+    <div className="min-h-[100dvh] w-full bg-black text-white selection:bg-indigo-500/30">
         {/* Background Gradients */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px]" />
           <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/5 rounded-full blur-[120px]" />
         </div>
 
-      <div className="relative z-10 mx-auto max-w-2xl space-y-8 pt-12">
+      <div className="relative z-10 w-full max-w-3xl mx-auto p-6 md:p-10 pb-32 space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-black tracking-tighter uppercase mb-4">Profile</h1>
-          <div className="glass-panel p-4 rounded-2xl flex items-center justify-between border border-glass-border">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Wallet Address</span>
-            <p className="text-sm text-zinc-300 font-mono truncate">{address}</p>
-          </div>
+          <h1 className="text-3xl font-black tracking-tighter uppercase text-white">Profile</h1>
+          <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest">Account Details</p>
+        </div>
+
+        <div className="glass-panel p-5 rounded-2xl border border-glass-border">
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">Wallet Address</span>
+          <p className="text-sm text-white font-mono break-all">{address}</p>
         </div>
 
         <div className="glass-card p-6 space-y-4">
-          <h2 className="text-lg font-black tracking-tight uppercase">Identity Verification</h2>
+          <h2 className="text-lg font-black tracking-tight uppercase text-white">Identity Verification</h2>
           <div className="flex items-center gap-3">
             {isWorldIdVerified ? (
               <>
@@ -71,7 +73,7 @@ function Profile() {
               <div className="text-[10px] font-mono text-zinc-400 space-y-2 mt-4 pt-4 border-t border-glass-border">
                 <div className="flex justify-between">
                   <span className="text-zinc-500">Verification Level:</span>
-                  <span className="text-indigo-400 text-right">{displayLevel}</span>
+                  <span className="text-white text-right">{displayLevel}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500">Nullifier Hash:</span>

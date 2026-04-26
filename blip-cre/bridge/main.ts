@@ -21,19 +21,22 @@ const configSchema = z.object({
   vaultAddress: z.string(),
   worldIdVerifyUrl: z.string(),
   chainSelectorName: z.string(),
+  isTestnet: z.boolean().default(true),
 })
 
 type Config = z.infer<typeof configSchema>
 
-// Payload expected for bridge execution
-type BridgeExecutionPayload = {
-  intentId: string;
-  user: string;
-  amount: string;
-  recipient: string;
-  // ccipMessageId: string; // Removed as per user request (using CCTP now)
-  proof: any; // World ID Proof
-};
+// Payload schema for bridge execution
+const bridgePayloadSchema = z.object({
+  intentId: z.string(),
+  user: z.string(),
+  amount: z.string(),
+  recipient: z.string(),
+  destinationChainSelector: z.string(),
+  proof: z.unknown(), // World ID Proof
+});
+
+type BridgeExecutionPayload = z.infer<typeof bridgePayloadSchema>;
 
 /**
  * Orchestrates the ChainBridge AI verification and execution flow.
@@ -43,9 +46,17 @@ export const onHttpTrigger = async (
   payload: HTTPPayload,
 ): Promise<string> => {
   try {
-    const data = decodeJson<BridgeExecutionPayload>(payload.input);
+    const rawData = decodeJson<unknown>(payload.input);
+    const parseResult = bridgePayloadSchema.safeParse(rawData);
+    
+    if (!parseResult.success) {
+      throw new Error(`Invalid payload: ${parseResult.error.message}`);
+    }
+    
+    const data = parseResult.data;
+    
     runtime.log(`[ChainBridge] Processing execution for Intent: ${data.intentId}`);
-    runtime.log(`[ChainBridge] User: ${data.user}, Amount: ${data.amount}`);
+    runtime.log(`[ChainBridge] User: ${data.user}, Amount: ${data.amount}, Dest: ${data.destinationChainSelector}`);
 
     // Phase 1: Verify World ID Proof via CRE HTTPClient
     runtime.log(`[ChainBridge] Verifying World ID proof...`);
@@ -95,7 +106,7 @@ export const onHttpTrigger = async (
     const network = getNetwork({
       chainFamily: 'evm',
       chainSelectorName: runtime.config.chainSelectorName,
-      isTestnet: true,
+      isTestnet: runtime.config.isTestnet,
     })
 
     if (!network) {
@@ -128,7 +139,7 @@ export const onHttpTrigger = async (
         data.user as Address,
         BigInt(data.amount),
         data.recipient as Address,
-        10344971235874465080n // Base Sepolia Selector as BigInt
+        BigInt(data.destinationChainSelector)
       ],
     });
 

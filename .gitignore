@@ -8,7 +8,7 @@ out/
 /broadcast/**/dry-run/
 
 # Docs
-docs/
+
 
 # Dotenv files (but keep .env.example files)
 .env
