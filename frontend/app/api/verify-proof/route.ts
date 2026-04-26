@@ -41,7 +41,7 @@ export async function POST(request: Request): Promise<Response> {
     };
   } else {
     // IDKit v1 format from MiniKit — use v1 API directly
-    apiUrl = `https://developer.worldcoin.org/api/v1/verify/${app_id}`;
+    apiUrl = `https://developer.world.org/api/v1/verify/${app_id}`;
     apiPayload = {
       action,
       signal: idkitResponse.signal || idkitResponse.signal_hash || "",

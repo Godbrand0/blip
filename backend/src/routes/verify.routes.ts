@@ -138,7 +138,7 @@ router.post("/verify", async (req, res) => {
       console.log(`[Step 3] Using v4 API: ${apiUrl}`);
     } else {
       // IDKit v1 format from MiniKit — use v1 API directly, no transformation needed
-      apiUrl = `https://developer.worldcoin.org/api/v1/verify/${app_id}`;
+      apiUrl = `https://developer.world.org/api/v1/verify/${app_id}`;
       apiPayload = {
         action: proofAction,
         signal: proof.signal || proof.signal_hash || "",
