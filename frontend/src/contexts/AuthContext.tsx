@@ -35,7 +35,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { address } = useAccount();
   const [isMiniKit, setIsMiniKit] = useState(false);
-  const [isWorldIdVerified, setIsWorldIdVerified] = useState(false);
+  const [isWorldIdVerified, setIsWorldIdVerified] = useState(true);
   const [worldIdProof, setWorldIdProof] = useState<IDKitResult | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
@@ -89,8 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (resolvedAddress !== walletAddress) {
       setWalletAddress(resolvedAddress);
       
-      // Reset verification state when wallet changes
-      setIsWorldIdVerified(false);
       setWorldIdProof(null);
 
       if (resolvedAddress) {
@@ -143,7 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const clearAuth = useCallback(() => {
-    setIsWorldIdVerified(false);
     setWorldIdProof(null);
     setWalletAddress(null);
     sessionStorage.removeItem("blip_wallet_address");

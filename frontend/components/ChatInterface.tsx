@@ -239,10 +239,6 @@ export function ChatInterface() {
     setExecutingIntent(key);
 
     try {
-      if (!isWorldIdVerified || !worldIdProof) {
-        throw new Error("World ID verification required.");
-      }
-
       const finalRecipient = data.recipient === 'self' ? walletAddress : data.recipient;
       if (!finalRecipient) throw new Error("Recipient address not found.");
 

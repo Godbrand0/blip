@@ -340,40 +340,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isWorldIdVerified) {
-    return (
-      <OnboardingLayout 
-        title={isMiniKit ? "IDENTITY" : "SECURITY"} 
-        subtitle={isMiniKit ? "Prove uniqueness via World ID to establish secure bridging tunnel." : "Zero-knowledge proof required to prevent sybil infiltration."}
-      >
-        <div className="w-full space-y-6">
-          {error && <p className="text-[10px] text-red-600 font-black uppercase tracking-widest text-center">{error}</p>}
-          <button
-            onClick={handleVerify}
-            disabled={verifying}
-            className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-30"
-          >
-            {verifying ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
-            {verifying ? "SYNCING..." : (isMiniKit ? "WORLD APP VERIFY" : "WORLD ID VERIFY")}
-          </button>
-          {rpContext && (
-            <IDKitRequestWidget
-              app_id={process.env.NEXT_PUBLIC_WORLD_APP_ID as `app_${string}`}
-              action={process.env.NEXT_PUBLIC_WORLD_ACTION_ID!}
-              rp_context={rpContext}
-              allow_legacy_proofs={true}
-              preset={deviceLegacy()}
-              open={isWidgetOpen}
-              onOpenChange={setIsWidgetOpen}
-              onSuccess={(result) => setVerified(result as any, address || undefined)}
-              handleVerify={handleBrowserVerify}
-            />
-          )}
-        </div>
-      </OnboardingLayout>
-    );
-  }
-
   return <>{children}</>;
 }
 

@@ -228,7 +228,7 @@ function BridgeForm() {
   const recordOnChain = async (_burnTxHashHex: string, _rawAmount: string): Promise<string | null> => null;
 
   const handleBridge = async () => {
-    if (!isValid || !isWorldIdVerified) return;
+    if (!isValid) return;
 
     // Ensure we are on the correct Source Chain
     if (currentChainId !== sourceChainId) {

@@ -70,7 +70,7 @@ export function NavBar() {
   const { isConnected, address } = useAccount();
   const { isWorldIdVerified } = useAuth();
 
-  if (!isConnected || !isWorldIdVerified) return null;
+  if (!isConnected) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-black md:top-0 md:bottom-auto md:border-t-0 md:border-b-2">
