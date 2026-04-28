@@ -5,6 +5,7 @@
 > *"Bridge 10 USDC to Base"* → done in seconds.
 
 **Live demo:** https://blip-frontend-two.vercel.app
+
 **Worldapp miniapp** https://world.org/mini-app?app_id=app_a354163a8c7050bc98a0221fd3e64b68&path=/
 
 ---
