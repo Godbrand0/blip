@@ -1,9 +1,0 @@
-
-# ==========================================================================
-dev:
-  user-workflow:
-    workflow-name: "test-workflow-dev"
-  workflow-artifacts:
-    workflow-path: "./src/workflow.ts"
-    config-path: "./config.dev.json"
-    secrets-path: ""

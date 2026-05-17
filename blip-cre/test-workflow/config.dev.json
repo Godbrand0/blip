@@ -1,6 +1,0 @@
-{
-  "authorizedEVMAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "vaultAddress": "0x...",
-  "worldIdVerifyUrl": "http://localhost:3001/api/verify",
-  "attributionAnalyzeUrl": "http://localhost:3001/api/attribution/analyze"
-}

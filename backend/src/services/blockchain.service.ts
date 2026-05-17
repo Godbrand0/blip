@@ -10,14 +10,14 @@ export class BlockchainService {
   private wallet: ethers.Wallet;
 
   constructor() {
-    const crePrivateKey = process.env.CRE_PRIVATE_KEY;
+    const crePrivateKey = process.env.RELAYER_PRIVATE_KEY;
 
     console.log('BlockchainService initialization (Bridging Mode):');
     console.log('- World Chain RPC:', CHAINS.WORLD_CHAIN.rpcUrl);
     console.log('- CRE Private Key:', crePrivateKey ? 'SET' : 'NOT SET');
 
     if (!crePrivateKey) {
-      console.error('Missing required environment variable: CRE_PRIVATE_KEY');
+      console.error('Missing required environment variable: RELAYER_PRIVATE_KEY');
       throw new Error("Missing blockchain configuration");
     }
 

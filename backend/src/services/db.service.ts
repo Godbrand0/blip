@@ -21,7 +21,6 @@ interface Intent {
 
 interface User {
   address: string;
-  worldIdVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,24 +111,12 @@ class DbService {
     const now = new Date().toISOString();
     const newUser: User = {
       address: address.toLowerCase(),
-      worldIdVerified: false,
       createdAt: now,
       updatedAt: now
     };
     this.db.users.push(newUser);
     this.save();
     return newUser;
-  }
-
-  async markUserVerified(address: string) {
-    const index = this.db.users.findIndex(u => u.address.toLowerCase() === address.toLowerCase());
-    if (index !== -1) {
-      this.db.users[index].worldIdVerified = true;
-      this.db.users[index].updatedAt = new Date().toISOString();
-      this.save();
-      return this.db.users[index];
-    }
-    return null;
   }
 }
 

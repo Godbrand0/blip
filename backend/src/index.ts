@@ -7,9 +7,7 @@ import { createServer } from 'http';
 import { initWebSocket } from './services/websocket';
 import { logger } from './utils/logger';
 import { connectToDatabase, collections } from './database/db';
-import verifyRoutes from './routes/verify.routes';
 import bridgeRoutes from './routes/bridge.routes';
-import rpSignatureRoutes from './routes/rp-signature.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -27,8 +25,6 @@ app.use(express.json());
 // ═══════════════════════════════════════════════════════════
 
 app.use('/api/bridge', bridgeRoutes);
-app.use('/api', verifyRoutes);
-app.use('/api', rpSignatureRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -3,7 +3,6 @@ import { MongoClient, Db, Collection, Document, ServerApiVersion } from 'mongodb
 // Define interfaces for our models
 export interface User extends Document {
   address: string;
-  worldIdVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

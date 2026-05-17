@@ -1,13 +1,6 @@
 // src/config/contracts.ts
 
 export const CONTRACTS = {
-  HUMAN_REGISTRY: {
-    address: process.env.HUMAN_REGISTRY_ADDRESS!,
-    abi: [
-      "function markVerified(address user) external",
-      "function isVerified(address user) view returns (bool)"
-    ]
-  },
   TRANSACTION_RECORDER: {
     address: process.env.TRANSACTION_RECORDER_ADDRESS!,
     abi: [

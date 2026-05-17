@@ -4,7 +4,6 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import dotenv from "dotenv";
-import verifyRoutes from "./routes/verify.routes";
 import bridgeRoutes from "./routes/bridge.routes";
 
 dotenv.config();
@@ -21,7 +20,6 @@ app.use(express.json());
 
 // Routes
 app.use("/api/bridge", bridgeRoutes);
-app.use("/api", verifyRoutes);
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });

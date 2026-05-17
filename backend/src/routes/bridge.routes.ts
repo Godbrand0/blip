@@ -5,6 +5,90 @@ import { collections } from "../database/db";
 const router: ReturnType<typeof Router> = Router();
 
 /**
+ * @route GET /api/bridge/stats
+ * @desc Returns global stats for the bridge landing page, including total transfers, volume, and live explorer feed.
+ */
+router.get("/stats", async (req, res) => {
+  try {
+    const intents = await collections.intents;
+    
+    // 1. Total and completed counts
+    const totalBridges = await intents.countDocuments({});
+    const completedBridges = await intents.countDocuments({ status: "COMPLETED" });
+
+    // 2. Sum up total volume bridged (in USDC)
+    const volumeAgg = await intents.aggregate([
+      { $match: { status: "COMPLETED" } },
+      {
+        $group: {
+          _id: null,
+          totalRaw: { $sum: { $toDouble: "$amount" } }
+        }
+      }
+    ]).toArray();
+    const totalUsdcBridged = volumeAgg.length > 0 ? volumeAgg[0].totalRaw / 1e6 : 0;
+
+    // 3. Destination chains popularity
+    const destChainsAgg = await intents.aggregate([
+      {
+        $group: {
+          _id: "$destChain",
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]).toArray();
+
+    const topTarget = destChainsAgg.length > 0 
+      ? (destChainsAgg[0]._id === "WORLD_CHAIN" ? "World Chain Sepolia" : "Base Sepolia") 
+      : "Base Sepolia";
+
+    // 4. Fetch 10 most recent global transfers for explorer feed
+    const recentIntents = await intents.find({})
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .toArray();
+
+    const maskAddress = (addr: string) => {
+      if (!addr) return "0x0000...0000";
+      return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    };
+
+    const recentBridges = recentIntents.map(intent => {
+      const amtNum = parseFloat(intent.amount || "0") / 1e6;
+      return {
+        intentId: intent.intentId,
+        userMasked: maskAddress(intent.user),
+        recipientMasked: maskAddress(intent.recipient),
+        amount: amtNum,
+        status: intent.status,
+        sourceChain: intent.sourceChain || "WORLD_CHAIN",
+        destChain: intent.destChain || "BASE_SEPOLIA",
+        burnTxHash: intent.burnTxHash || "",
+        destTxHash: intent.baseTxHash || "",
+        timestamp: intent.createdAt || intent.timestamp || new Date()
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      totalBridges,
+      completedBridges,
+      totalUsdcBridged,
+      topTarget,
+      recentBridges
+    });
+  } catch (error: any) {
+    console.error("Stats Aggregation Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to load bridge statistics",
+      details: error.message
+    });
+  }
+});
+
+/**
  * @route POST /api/bridge/relay
  * @desc Accepts a burnTxHash from World Chain, verifies intent, and triggers background relay to Base Sepolia.
  */
@@ -19,10 +103,6 @@ router.post("/relay", async (req, res) => {
   try {
     const users = await collections.users;
     const dbUser = await users.findOne({ address: user.toLowerCase() });
-
-    if (!dbUser || !dbUser.worldIdVerified) {
-      console.log(`User ${user} not verified in DB, checking proof...`);
-    }
 
     // 2. Generate unique intentId
     const intentId = `intent_${Date.now()}_${Math.random().toString(36).substring(7)}`;

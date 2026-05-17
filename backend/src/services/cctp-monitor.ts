@@ -14,7 +14,7 @@ function getRecorderContract() {
     name: chainConfig.name
   }, { staticNetwork: true });
   
-  const signer = new ethers.Wallet(process.env.CRE_PRIVATE_KEY!, provider);
+  const signer = new ethers.Wallet(process.env.RELAYER_PRIVATE_KEY!, provider);
   return new ethers.Contract(
     CONTRACTS.TRANSACTION_RECORDER.address,
     CONTRACTS.TRANSACTION_RECORDER.abi as ethers.InterfaceAbi,
@@ -32,7 +32,7 @@ async function updateOnChainStatus(
   // because the TransactionRecorder contract is on World Chain 
   // and it tracks the global state of intents originated from there.
 
-  if (!CONTRACTS.TRANSACTION_RECORDER.address || !process.env.CRE_PRIVATE_KEY) return;
+  if (!CONTRACTS.TRANSACTION_RECORDER.address || !process.env.RELAYER_PRIVATE_KEY) return;
 
   try {
     const intents = await collections.intents;
@@ -82,7 +82,7 @@ async function updateOnChainStatus(
   }
 }
 async function recordOnChainIfNeeded(intentId: string): Promise<void> {
-  if (!CONTRACTS.TRANSACTION_RECORDER.address || !process.env.CRE_PRIVATE_KEY) return;
+  if (!CONTRACTS.TRANSACTION_RECORDER.address || !process.env.RELAYER_PRIVATE_KEY) return;
 
   try {
     const intents = await collections.intents;
@@ -261,7 +261,7 @@ export async function monitorAndRelay(
       chainId: destChainConfig.chainId,
       name: destChainConfig.name
     }, { staticNetwork: true });
-    const destSigner = new ethers.Wallet(process.env.CRE_PRIVATE_KEY!, destProvider);
+    const destSigner = new ethers.Wallet(process.env.RELAYER_PRIVATE_KEY!, destProvider);
 
     const messageTransmitter = new ethers.Contract(
       CHAINS[destChainName].messageTransmitter,

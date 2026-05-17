@@ -39,6 +39,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useIntents } from "@/hooks/useIntents";
 import { getSocket } from "@/lib/websocket";
+import { ChatInterface } from "@/components/ChatInterface";
 
 function usdcToRaw(amount: number): string {
   return BigInt(Math.round(amount * 1e6)).toString();
@@ -50,12 +51,13 @@ export default function BridgePage() {
   return (
     <AuthGate>
       <BridgeForm />
+      <ChatInterface />
     </AuthGate>
   );
 }
 
 function BridgeForm() {
-  const { walletAddress, isMiniKit, isWorldIdVerified, worldIdProof } = useAuth();
+  const { walletAddress, isMiniKit } = useAuth();
   const { data: walletClient } = useWalletClient();
   const { switchChainAsync } = useSwitchChain();
   const { chainId: currentChainId } = useAccount();
@@ -335,7 +337,7 @@ function BridgeForm() {
             user: walletAddress,
             amount: rawAmount,
             recipient,
-            proof: worldIdProof,
+
             recordId: _recordId,
             sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
             destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
@@ -415,7 +417,7 @@ function BridgeForm() {
             user: walletAddress,
             amount: rawAmount,
             recipient,
-            proof: worldIdProof,
+
             recordId,
             sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
             destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',

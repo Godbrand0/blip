@@ -68,8 +68,6 @@ const navItems = [
 export function NavBar() {
   const pathname = usePathname();
   const { isConnected, address } = useAccount();
-  const { isWorldIdVerified } = useAuth();
-
   if (!isConnected) return null;
 
   return (

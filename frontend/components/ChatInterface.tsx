@@ -117,7 +117,6 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { intents, addIntent } = useIntents(walletAddress || undefined);
-  const { isWorldIdVerified, worldIdProof } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -348,7 +347,7 @@ export function ChatInterface() {
             user: walletAddress,
             amount: rawAmount,
             recipient: finalRecipient,
-            proof: worldIdProof,
+
             sourceChain: sourceChainName,
             destChain: destChainName,
           }),
@@ -440,7 +439,7 @@ export function ChatInterface() {
             user: walletAddress,
             amount: rawAmount,
             recipient: finalRecipient,
-            proof: worldIdProof,
+
             sourceChain: sourceChainName,
             destChain: destChainName,
           }),

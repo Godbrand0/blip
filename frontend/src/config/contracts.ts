@@ -8,10 +8,6 @@ export const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 export const BASE_SEPOLIA_TOKEN_MESSENGER = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA";
 export const BASE_SEPOLIA_DOMAIN = 6;
 
-// Human Registry deployed address (World Chain Sepolia)
-export const HUMAN_REGISTRY_ADDRESS =
-  process.env.NEXT_PUBLIC_HUMAN_REGISTRY_ADDRESS || "0x84b1634ec67d309aeb9dc422f001350e467dcbc8";
-
 // Legacy / Default exports for compatibility
 export const USDC_ADDRESS = WORLD_CHAIN_USDC;
 export const TOKEN_MESSENGER_ADDRESS = WORLD_CHAIN_TOKEN_MESSENGER;
@@ -60,16 +56,6 @@ export const ERC20_ABI = [
       { name: "spender", type: "address" },
       { name: "amount", type: "uint256" },
     ],
-    outputs: [{ name: "", type: "bool" }],
-  },
-] as const;
-
-export const HUMAN_REGISTRY_ABI = [
-  {
-    name: "isVerified",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "user", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
   },
 ] as const;

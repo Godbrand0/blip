@@ -1,61 +1,107 @@
-# BLIP: System Architecture
+# Blip: System Architecture
 
-This document explains how **Chainlink CRE**, the **AI Attribution Agent**, **x402 Payment Layer**, and **World ID** integrate to create a trustless IP licensing and royalty ecosystem.
+Cross-chain USDC bridge from World Chain Sepolia to Base Sepolia using Circle CCTP V2. Users interact via a natural language AI interface or a direct bridge UI, either in-browser or inside World App as a MiniKit miniapp.
 
 ---
 
-## 🏗 High-Level Architecture
+## High-Level Flow
 
-BLIP follows a "Decentralized Referee" model. Instead of a central server deciding what is original or who is human, we use **Chainlink CRE** as a trusted executor to bridge complex off-chain logic with the blockchain.
-
-```mermaid
-graph TD
-    A[Creator] -->|Uploads Content + World ID Proof| B(Chainlink CRE)
-    B -->|1. Verify Humanness| C[World ID Protocol]
-    B -->|2. Analyze Attribution| D[AI Agent]
-    B -->|3. Record Provenance| E[ContentRegistry Contract]
-    
-    F[User] -->|4. Pay via x402| G[Backend API]
-    G -->|5. Issue Token| F
-    F -->|6. Access Content| G
-    G -->|7. Split Royalties| H[RoyaltyPayout Contract]
-    
-    E -.->|8. Determine Splits| H
+```
+┌─────────────────────────────────────┐
+│          User (Browser / World App) │
+│  - AI chat or Bridge UI             │
+│  - Signs approve + depositForBurn   │
+└──────────────┬──────────────────────┘
+               │ burn tx hash
+               ▼
+┌─────────────────────────────────────┐
+│         Backend (Node.js)           │
+│  POST /api/bridge/relay             │
+│  - Stores intent in MongoDB         │
+│  - Starts monitorAndRelay()         │
+└──────────────┬──────────────────────┘
+               │ poll
+               ▼
+┌─────────────────────────────────────┐
+│      Circle Iris API (Sandbox)      │
+│  GET /v2/messages/{domain}?tx=...   │
+│  Returns attestation once ready     │
+└──────────────┬──────────────────────┘
+               │ attestation hex
+               ▼
+┌─────────────────────────────────────┐
+│  Base Sepolia MessageTransmitter    │
+│  receiveMessage(message, attest)    │
+│  → Native USDC minted to recipient  │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## 🔍 Low-Level Implementation
+## Components
 
-### 1. World ID (Sybil Resistance)
-*   **Role**: Ensures one human = one creator profile.
-*   **Implementation**: Creators generate a ZK-proof using World ID's IDKit.
-*   **CRE Integration**: The `cre-adapter` receives the proof (`merkle_root`, `nullifier_hash`, etc.) and verifies it off-chain using World's developer API. This allows World ID to be used on chains where it isn't results natively supported.
+### Frontend (Next.js 16)
 
-### 2. AI Attribution Agent (Provenance)
-*   **Role**: Detects if content is original or derived from existing sources.
-*   **Implementation**: A Python service (`analyzer.py`) that uses natural language heuristics to compare new submissions against a known corpus.
-*   **CRE Integration**: CRE calls the agent's `/analyze` endpoint during the validation phase. It expects a **Confidence Score >= 70%** to approve registration.
+- **AI Chat** (`components/ChatInterface.tsx`) — Gemini parses natural language into a bridge intent (chain, amount, recipient). Batches `approve` + `depositForBurn` into a single wallet interaction.
+- **Bridge UI** (`app/bridge/page.tsx`) — Form-based bridge with live USDC balance display, chain switching, and relay status via WebSocket.
+- **AuthGate** (`src/components/AuthGate.tsx`) — Wallet-only gate. Inside World App: MiniKit SIWE authentication. In browser: RainbowKit `ConnectButton`.
+- **AuthContext** (`src/contexts/AuthContext.tsx`) — Provides `walletAddress` and `isMiniKit` to the app. MiniKit detection runs on mount.
 
-### 3. Chainlink CRE (Decentralized Referee)
-*   **Role**: The "source of truth" that orchestrates the off-chain checks and updates the blockchain.
-*   **Implementation**: The `cre-adapter` (`index.ts`) serves as a custom external adapter.
-*   **Atomic Validation**: It consolidates the results from World ID and the AI Agent. Only if **both** checks pass does it trigger the on-chain `validateContent(id, isHuman)` function.
+### Backend (Node.js + Express)
 
-### 4. x402 Payment Layer (Monetization)
-*   **Role**: Enforces a protocol-level "Payment Required" status for digital content.
-*   **Implementation**: 
-    - **Middleware**: The `x402.middleware.ts` intercepts requests to premium content and checks for a valid cryptographic receipt.
-    - **Service**: `payment.service.ts` uses HMAC-SHA256 to sign and verify receipts (tokens).
-*   **Interaction**: When a user pays, the backend fetches the attribution list from `ContentRegistry` and triggers `RoyaltyPayout.distributeRoyalties()`.
+- **`/api/bridge/relay`** — Receives burn tx hash, stores intent, triggers background relay.
+- **`/api/bridge/status/:intentId`** — Returns current relay status.
+- **`/api/bridge/retry/:intentId`** — Re-triggers a stuck or failed relay.
+- **`cctp-monitor.ts`** — Core relay loop: extracts `MessageSent` bytes from burn tx, polls Iris API for attestation, calls `receiveMessage` on Base Sepolia, updates DB and on-chain recorder.
+- **WebSocket** — Pushes `intent-relaying`, `intent-completed`, `intent-failed` events to the frontend in real time.
+
+### Smart Contracts (Foundry, World Chain Sepolia)
+
+- **`BlipTransactionRecorder.sol`** — Records each bridge intent on-chain (`recordTransaction`) and tracks its status (`updateStatus`). The backend relayer calls this after the burn and after finalization.
+- **`BlipHistory.sol`** — Historical log of bridge events.
+
+### Circle CCTP V2
+
+| Parameter | Value |
+|---|---|
+| World Chain Sepolia domain | 14 |
+| Base Sepolia domain | 6 |
+| Fast Transfer threshold | `minFinalityThreshold ≤ 1000` (~8s attestation) |
+| Attestation API | `https://iris-api-sandbox.circle.com` |
 
 ---
 
-## 🌉 The Integration Loop
+## Data Flow Detail
 
-1.  **Identity Layer**: World ID confirms the creator is a real human.
-2.  **Integrity Layer**: AI Attribution Agent confirms the content's sources.
-3.  **Authentication Layer**: Chainlink CRE attests to these facts on-chain.
-4.  **Monetization Layer**: x402 ensures payment is collected before access and distributed accurately based on the on-chain provenance.
+1. **Frontend** calls `TokenMessenger.depositForBurn` on World Chain Sepolia with:
+   - `burnToken`: USDC (`0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88`)
+   - `destinationDomain`: 6 (Base Sepolia)
+   - `maxFee`: 100,000 (0.1 USDC, required by CCTP V2)
+   - `minFinalityThreshold`: 1000 (Fast Transfer)
 
-This unified stack ensures that **Human Creators** are identified, **Original Sources** are acknowledged, and **Royalties** are guaranteed without a central authority.
+2. **Backend** receives the `burnTxHash` via `POST /api/bridge/relay`. Inserts an `Intent` document with status `PENDING`.
+
+3. **`monitorAndRelay()`** runs in the background:
+   - Parses `MessageSent` log from the burn tx receipt.
+   - Polls `GET /v2/messages/14?transactionHash={burnTxHash}` every 5 seconds (up to ~13 minutes).
+   - When attestation status is `complete`, calls `receiveMessage(messageBytes, attestationHex)` on Base Sepolia's MessageTransmitter using the `RELAYER_PRIVATE_KEY` wallet.
+   - Updates intent status to `RELAYING` → `COMPLETED` (or `FAILED`).
+   - Calls `BlipTransactionRecorder.updateStatus()` on World Chain to record final state.
+
+4. **Frontend** receives live updates via WebSocket and falls back to polling `/api/bridge/status/:intentId` every 10 seconds.
+
+---
+
+## Environment Variables
+
+### Backend
+| Variable | Description |
+|---|---|
+| `RELAYER_PRIVATE_KEY` | Wallet key used to pay gas for `receiveMessage` on Base Sepolia |
+| `WORLD_CHAIN_RPC` | World Chain Sepolia RPC endpoint |
+| `BASE_RPC` | Base Sepolia RPC endpoint |
+| `DATABASE_URL` | MongoDB Atlas connection string |
+| `CCTP_ATTESTATION_URL` | Circle Iris API base (`https://iris-api-sandbox.circle.com`) |
+| `TRANSACTION_RECORDER_ADDRESS` | BlipTransactionRecorder on World Chain Sepolia |
+| `WORLD_CHAIN_DOMAIN` | `14` |
+| `BASE_SEPOLIA_DOMAIN` | `6` |

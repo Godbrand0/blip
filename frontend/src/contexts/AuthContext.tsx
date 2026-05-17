@@ -8,26 +8,19 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { type IDKitResult } from "@worldcoin/idkit";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { useAccount } from "wagmi";
 
 interface AuthContextType {
-  isWorldIdVerified: boolean;
-  worldIdProof: IDKitResult | null;
   walletAddress: string | null;
   isMiniKit: boolean;
-  setVerified: (proof: IDKitResult, walletAddress?: string) => void;
   clearAuth: () => void;
   setWalletAddress: (address: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  isWorldIdVerified: false,
-  worldIdProof: null,
   walletAddress: null,
   isMiniKit: false,
-  setVerified: (_proof, _addr) => {},
   clearAuth: () => {},
   setWalletAddress: (_address) => {},
 });
@@ -35,8 +28,6 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { address } = useAccount();
   const [isMiniKit, setIsMiniKit] = useState(false);
-  const [isWorldIdVerified, setIsWorldIdVerified] = useState(true);
-  const [worldIdProof, setWorldIdProof] = useState<IDKitResult | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   // Detect MiniKit environment robustly
@@ -75,10 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Resolve wallet address: MiniKit user or wagmi
   useEffect(() => {
-    // If we are in MiniKit, we don't strictly auto-sync `null` over an existing address
-    // because walletAuth sets the address asynchronously.
     let resolvedAddress = walletAddress;
-    
+
     if (isMiniKit) {
       const minikitAddr = (MiniKit as any).user?.walletAddress ?? null;
       if (minikitAddr) resolvedAddress = minikitAddr;
@@ -88,78 +77,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (resolvedAddress !== walletAddress) {
       setWalletAddress(resolvedAddress);
-      
-      setWorldIdProof(null);
 
       if (resolvedAddress) {
         sessionStorage.setItem("blip_wallet_address", resolvedAddress);
-
-        // Check if this specific wallet was previously verified in this session
-        const storedWorldIdProof = sessionStorage.getItem(
-          `blip_world_id_${resolvedAddress}`,
-        );
-        if (storedWorldIdProof) {
-          try {
-            const proof = JSON.parse(storedWorldIdProof);
-            // Discard stale proofs that are missing required fields (cached before fix)
-            if (!proof.nullifier_hash) {
-              sessionStorage.removeItem(`blip_world_id_${resolvedAddress}`);
-            } else {
-              setWorldIdProof(proof);
-              setIsWorldIdVerified(true);
-            }
-          } catch (error) {
-            console.error("Failed to parse stored World ID proof:", error);
-          }
-        }
       } else {
         sessionStorage.removeItem("blip_wallet_address");
       }
     }
   }, [address, isMiniKit, walletAddress]);
 
-  const setVerified = useCallback(
-    (proof: IDKitResult, newWalletAddress?: string) => {
-      setIsWorldIdVerified(true);
-      setWorldIdProof(proof);
-
-      let addr = walletAddress;
-      if (newWalletAddress) {
-        setWalletAddress(newWalletAddress);
-        sessionStorage.setItem("blip_wallet_address", newWalletAddress);
-        addr = newWalletAddress;
-      }
-
-      if (addr) {
-        sessionStorage.setItem(
-          `blip_world_id_${addr}`,
-          JSON.stringify(proof),
-        );
-      }
-    },
-    [walletAddress],
-  );
+  const setWalletAddressCallback = useCallback((addr: string) => {
+    setWalletAddress(addr);
+    sessionStorage.setItem("blip_wallet_address", addr);
+  }, []);
 
   const clearAuth = useCallback(() => {
-    setWorldIdProof(null);
     setWalletAddress(null);
     sessionStorage.removeItem("blip_wallet_address");
-
-    if (walletAddress) {
-      sessionStorage.removeItem(`blip_world_id_${walletAddress}`);
-    }
-  }, [walletAddress]);
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
-        isWorldIdVerified,
-        worldIdProof,
         walletAddress,
         isMiniKit,
-        setVerified,
         clearAuth,
-        setWalletAddress,
+        setWalletAddress: setWalletAddressCallback,
       }}
     >
       {children}
