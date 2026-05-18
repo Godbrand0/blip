@@ -8,6 +8,7 @@ import { initWebSocket } from './services/websocket';
 import { logger } from './utils/logger';
 import { connectToDatabase, collections } from './database/db';
 import bridgeRoutes from './routes/bridge.routes';
+import circleWalletRoutes from './routes/circle-wallet.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -25,6 +26,7 @@ app.use(express.json());
 // ═══════════════════════════════════════════════════════════
 
 app.use('/api/bridge', bridgeRoutes);
+app.use('/api/circle', circleWalletRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

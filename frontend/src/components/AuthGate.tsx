@@ -6,6 +6,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { motion } from "framer-motion";
+import CircleWalletSetup from "@/components/CircleWalletSetup";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isConnected } = useAccount();
@@ -14,6 +15,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [authenticating, setAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugPayload, setDebugPayload] = useState<string | null>(null);
+  const [showCircleSetup, setShowCircleSetup] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -21,7 +23,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!mounted) return null;
 
-  const isWalletConnected = isConnected || (isMiniKit && !!walletAddress);
+  const isCircleWallet = typeof window !== "undefined" && sessionStorage.getItem("blip_wallet_type") === "circle" && !!walletAddress;
+  const isWalletConnected = isConnected || (isMiniKit && !!walletAddress) || isCircleWallet;
 
   const handleMiniKitAuth = async () => {
     try {
@@ -86,6 +89,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   };
 
   if (!isWalletConnected) {
+    if (showCircleSetup) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-black p-4 md:p-6 overflow-hidden relative">
+          <CircleWalletSetup onClose={() => setShowCircleSetup(false)} />
+        </div>
+      );
+    }
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-black p-4 md:p-6 overflow-hidden relative">
         <motion.div
@@ -124,16 +135,25 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 {authenticating ? "CONNECTING..." : "Connect Signal"}
               </button>
             ) : (
-              <ConnectButton.Custom>
-                {({ openConnectModal }) => (
-                  <button
-                    onClick={openConnectModal}
-                    className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98]"
-                  >
-                    Connect Signal
-                  </button>
-                )}
-              </ConnectButton.Custom>
+              <div className="flex flex-col space-y-4 w-full">
+                <ConnectButton.Custom>
+                  {({ openConnectModal }) => (
+                    <button
+                      onClick={openConnectModal}
+                      className="w-full py-5 bg-white text-black font-black text-xs uppercase tracking-[0.2em] transition-all hover:bg-zinc-200 active:scale-[0.98]"
+                    >
+                      Connect Web3 Wallet
+                    </button>
+                  )}
+                </ConnectButton.Custom>
+
+                <button
+                  onClick={() => setShowCircleSetup(true)}
+                  className="w-full py-4 border-2 border-zinc-800 text-zinc-400 font-black text-xs uppercase tracking-[0.2em] transition-all hover:border-white hover:text-white active:scale-[0.98]"
+                >
+                  Sign in with Email
+                </button>
+              </div>
             )}
           </div>
         </motion.div>

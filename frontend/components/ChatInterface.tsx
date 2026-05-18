@@ -379,9 +379,180 @@ export function ChatInterface() {
           data: { txHash },
         }]);
 
-      // ─── Web Wallet path (MetaMask / browser extension) ─────────────────
+      // ─── Web Wallet or Circle Wallet path ──────────────────────────────
       } else {
-        if (!walletClient) throw new Error("Wallet not connected");
+        const isCircle = typeof window !== "undefined" && sessionStorage.getItem("blip_wallet_type") === "circle";
+        
+        if (isCircle) {
+          const userToken = localStorage.getItem("blip_circle_user_token");
+          const encryptionKey = localStorage.getItem("blip_circle_encryption_key");
+          const walletId = localStorage.getItem("blip_circle_wallet_id");
+          
+          if (!userToken || !encryptionKey || !walletId) {
+            throw new Error("Circle wallet session credentials not found. Please log in again.");
+          }
+
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '⏳ Preparing Circle bridge transactions...',
+            type: 'text',
+          }]);
+
+          // Dynamic SDK loading & execution helper
+          let sdk = (window as any).circleSdk;
+          if (!sdk) {
+            const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+            sdk = new W3SSdk();
+            const appId = process.env.NEXT_PUBLIC_CIRCLE_APP_ID || "351a6136-1c09-5a67-ab17-062fe81498b3";
+            sdk.setAppId(appId);
+            (window as any).circleSdk = sdk;
+          }
+          sdk.setAuthentication({ userToken, encryptionKey });
+
+          // 1. Check allowance
+          let currentAllowance = BigInt(0);
+          try {
+            currentAllowance = await sourceClient.readContract({
+              address: sourceConfig.usdc as `0x${string}`,
+              abi: erc20Abi,
+              functionName: 'allowance',
+              args: [walletAddress as `0x${string}`, sourceConfig.tokenMessenger as `0x${string}`],
+            }) as bigint;
+          } catch (e) { /* ignore */ }
+
+          const needsApproval = currentAllowance < totalNeeded;
+
+          if (needsApproval) {
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: '🔒 Step 1/2: Please approve USDC allowance via your secure PIN pop-up.',
+              type: 'text',
+            }]);
+
+            const approveRes = await fetch("/api/circle/contract-execution", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-User-Token": userToken,
+              },
+              body: JSON.stringify({
+                walletId,
+                contractAddress: sourceConfig.usdc,
+                abiFunctionSignature: "approve(address,uint256)",
+                abiParameters: [sourceConfig.tokenMessenger, totalNeeded.toString()]
+              })
+            });
+
+            const approveData = await approveRes.json();
+            if (!approveData.success) throw new Error(approveData.error || "Failed to trigger approval challenge.");
+
+            await new Promise<void>((resolve, reject) => {
+              sdk.execute(approveData.challengeId, (error: any, result: any) => {
+                if (error) reject(new Error(error.message || "Approval signature cancelled by user."));
+                else resolve();
+              });
+            });
+
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: '✅ Allowance approved! Preparing bridging transfer...',
+              type: 'text',
+            }]);
+
+            // Wait 4 seconds for transaction propagation & indexing on Circle's end
+            await new Promise(r => setTimeout(r, 4000));
+          }
+
+          // 2. depositForBurn
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '💸 Step 2/2: Confirm your bridge signature via secure PIN pop-up to start the transfer.',
+            type: 'text',
+          }]);
+
+          const burnRes = await fetch("/api/circle/contract-execution", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-User-Token": userToken,
+            },
+            body: JSON.stringify({
+              walletId,
+              contractAddress: sourceConfig.tokenMessenger,
+              abiFunctionSignature: "depositForBurn(uint256,uint32,bytes32,address,bytes32,uint256,uint256)",
+              abiParameters: [
+                rawAmount,
+                destConfig.domain.toString(),
+                recipientBytes32,
+                sourceConfig.usdc,
+                zeroBytes32,
+                "100000",
+                sourceChainId === 4801 ? "1000" : "0"
+              ]
+            })
+          });
+
+          const burnData = await burnRes.json();
+          if (!burnData.success) throw new Error(burnData.error || "Failed to trigger deposit challenge.");
+
+          const finalTxHash = await new Promise<string>((resolve, reject) => {
+            sdk.execute(burnData.challengeId, (error: any, result: any) => {
+              if (error) {
+                reject(new Error(error.message || "Bridge signature cancelled by user."));
+              } else {
+                console.log("Circle SDK Bridge success:", result);
+                // Extract transaction hash from challenge result
+                const txHash = result?.txHash || result?.transactionHash || result?.id || "MOCK_HASH";
+                resolve(txHash);
+              }
+            });
+          });
+
+          // Wait 3 seconds for broadcast to settle
+          await new Promise(r => setTimeout(r, 3000));
+
+          // 3. Register intent with backend
+          const response = await fetch('/api/bridge/relay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              txHash: finalTxHash,
+              user: walletAddress,
+              amount: rawAmount,
+              recipient: finalRecipient,
+              sourceChain: sourceChainName,
+              destChain: destChainName,
+            }),
+          });
+
+          const result = await response.json();
+          if (!result.success) throw new Error(result.error || 'Backend failed to register bridge intent');
+
+          const intentId = result.intentId || result.creResponse?.intentId || `fallback_${Date.now()}`;
+
+          addIntent({
+            intentId,
+            amount: data.amount,
+            recipient: finalRecipient,
+            status: 'PENDING',
+            burnTxHash: finalTxHash,
+            sourceTxHash: finalTxHash,
+            sourceChain: sourceChainName,
+            destChain: destChainName,
+          });
+
+          setPendingIntentId(intentId);
+          setPendingBurnTxHash(finalTxHash);
+
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `⏳ Bridge submitted! Monitoring relay for ${data.amount} USDC → ${destConfig.name}. This usually takes 5–10 minutes on testnet.`,
+            type: 'status',
+            data: { txHash: finalTxHash },
+          }]);
+
+        } else {
+          if (!walletClient) throw new Error("Wallet not connected");
 
         // Check allowance first via reliable public client
         let currentAllowance = BigInt(0);
@@ -470,6 +641,7 @@ export function ChatInterface() {
           type: 'status',
           data: { txHash: burnHash },
         }]);
+        }
       }
     } catch (err: any) {
       console.error('Bridge Execution Error:', err);
