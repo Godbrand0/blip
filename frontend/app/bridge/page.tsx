@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { AuthGate } from "@/src/components/AuthGate";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useSwitchChain, useAccount, useWalletClient } from "wagmi";
-import { createPublicClient, http, fallback, formatUnits, erc20Abi } from "viem";
+import { createPublicClient, http, fallback, formatUnits, erc20Abi, type PublicClient } from "viem";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { CHAIN_CONFIGS, TOKEN_MESSENGER_ABI, ERC20_ABI } from "@/src/config/contracts";
 import { worldchainSepolia, monadTestnet, arcTestnet } from "@/wagmi-config";
@@ -46,12 +46,12 @@ const arcPublicClient = createPublicClient({
   transport: http("https://rpc.testnet.arc.network"),
 });
 
-const PUBLIC_CLIENTS: Record<number, ReturnType<typeof createPublicClient>> = {
+const PUBLIC_CLIENTS = {
   [worldchainSepolia.id]: wcPublicClient,
   [baseSepolia.id]: basePublicClient,
   [monadTestnet.id]: monadPublicClient,
   [arcTestnet.id]: arcPublicClient,
-};
+} as Record<number, PublicClient>;
 
 const SUPPORTED_CHAIN_IDS = [worldchainSepolia.id, baseSepolia.id, monadTestnet.id, arcTestnet.id];
 
