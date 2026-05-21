@@ -1,14 +1,6 @@
 import { http as httpTransport, fallback } from "viem";
 import { defineChain } from "viem";
-import {
-  mainnet,
-  polygon,
-  optimism,
-  arbitrum,
-  base,
-  sepolia,
-  baseSepolia,
-} from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 
 export const worldchainSepolia = defineChain({
@@ -33,25 +25,6 @@ export const worldchainSepolia = defineChain({
   },
 });
 
-export const worldchain = defineChain({
-  id: 480,
-  name: "World Chain",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: {
-    default: {
-      http: [
-        "https://worldchain-mainnet.g.alchemy.com/public",
-        "https://worldchain.drpc.org",
-      ],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "World Chain Explorer",
-      url: "https://worldchain-mainnet.explorer.alchemy.com",
-    },
-  },
-});
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
@@ -61,10 +34,50 @@ if (!projectId || projectId === "your_walletconnect_project_id") {
   );
 }
 
+export const monadTestnet = defineChain({
+  id: 10143,
+  name: "Monad Testnet",
+  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+  rpcUrls: {
+    default: {
+      http: [
+        "https://testnet-rpc.monad.xyz",
+        "https://rpc.ankr.com/monad_testnet",
+      ],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Monad Explorer",
+      url: "https://testnet.monadexplorer.com",
+    },
+  },
+  testnet: true,
+});
+
+export const arcTestnet = defineChain({
+  id: 5042002,
+  name: "Arc Testnet",
+  nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.testnet.arc.network"],
+      webSocket: ["wss://rpc.testnet.arc.network"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "ArcScan",
+      url: "https://testnet.arcscan.app",
+    },
+  },
+  testnet: true,
+});
+
 export const config = getDefaultConfig({
   appName: "Blip",
   projectId: projectId || "",
-  chains: [worldchainSepolia, worldchain, mainnet, polygon, optimism, arbitrum, base, sepolia, baseSepolia],
+  chains: [worldchainSepolia, baseSepolia, monadTestnet, arcTestnet],
   transports: {
     [worldchainSepolia.id]: fallback([
       ...(process.env.NEXT_PUBLIC_WORLD_CHAIN_RPC
@@ -75,18 +88,16 @@ export const config = getDefaultConfig({
       httpTransport("https://4801.rpc.thirdweb.com"),
       httpTransport("https://worldchain-sepolia.g.alchemy.com/public"),
     ]),
-    [worldchain.id]: httpTransport(),
-    [mainnet.id]: httpTransport(),
-    [polygon.id]: httpTransport(),
-    [optimism.id]: httpTransport(),
-    [arbitrum.id]: httpTransport(),
-    [base.id]: httpTransport(),
-    [sepolia.id]: httpTransport(),
     [baseSepolia.id]: fallback([
       httpTransport("https://sepolia.base.org"),
       httpTransport("https://base-sepolia.drpc.org"),
       httpTransport("https://base-sepolia.gateway.tenderly.co"),
     ]),
+    [monadTestnet.id]: fallback([
+      httpTransport("https://testnet-rpc.monad.xyz"),
+      httpTransport("https://rpc.ankr.com/monad_testnet"),
+    ]),
+    [arcTestnet.id]: httpTransport("https://rpc.testnet.arc.network"),
   },
 });
 
