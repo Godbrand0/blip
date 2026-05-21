@@ -4,15 +4,25 @@ import { CONTRACTS } from '../config/contracts';
 import { ethers } from 'ethers';
 import { notifyFrontend } from './websocket';
 
+function buildProvider(chainKey: keyof typeof CHAINS): ethers.FallbackProvider | ethers.JsonRpcProvider {
+  const cfg = CHAINS[chainKey];
+  const network = { chainId: cfg.chainId, name: cfg.name };
+  const urls = Array.from(new Set([cfg.rpcUrl, ...cfg.rpcFallbacks]));
+  if (urls.length === 1) {
+    return new ethers.JsonRpcProvider(urls[0], network, { staticNetwork: true });
+  }
+  const providers = urls.map(url =>
+    new ethers.JsonRpcProvider(url, network, { staticNetwork: true })
+  );
+  return new ethers.FallbackProvider(providers, network);
+}
+
 // ── BlipHistory on-chain status updater ────────────────────────────────────
 // Status enum mirrors BlipHistory.sol: 0=PENDING, 1=RELAYING, 2=COMPLETED, 3=FAILED
 
 function getRecorderContract() {
   const chainConfig = CHAINS.WORLD_CHAIN;
-  const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl, {
-    chainId: chainConfig.chainId,
-    name: chainConfig.name
-  }, { staticNetwork: true });
+  const provider = buildProvider('WORLD_CHAIN');
   
   const signer = new ethers.Wallet(process.env.RELAYER_PRIVATE_KEY!, provider);
   return new ethers.Contract(
@@ -38,8 +48,11 @@ async function updateOnChainStatus(
     const intents = await collections.intents;
     const intent = await intents.findOne(
       { intentId },
-      { projection: { onChainRecordId: true, burnTxHash: true } }
+      { projection: { onChainRecordId: true, burnTxHash: true, sourceChain: true } }
     );
+
+    // Recorder contract only lives on World Chain — nothing to update for other sources
+    if (intent?.sourceChain && intent.sourceChain !== 'WORLD_CHAIN') return;
 
     if (!intent) return;
 
@@ -88,10 +101,13 @@ async function recordOnChainIfNeeded(intentId: string): Promise<void> {
     const intents = await collections.intents;
     const intent = await intents.findOne(
       { intentId },
-      { projection: { onChainRecordId: true, user: true, amount: true, recipient: true, burnTxHash: true } }
+      { projection: { onChainRecordId: true, user: true, amount: true, recipient: true, burnTxHash: true, sourceChain: true } }
     );
 
     if (!intent || intent.onChainRecordId) return; // Already recorded
+
+    // Recorder contract only exists on World Chain — skip for other source chains
+    if (intent.sourceChain && intent.sourceChain !== 'WORLD_CHAIN') return;
 
     const recorder = getRecorderContract();
     const burnTxBytes32 = intent.burnTxHash as string; // already 0x + 32 bytes
@@ -146,7 +162,7 @@ export async function monitorAndRelay(
 
   try {
     // ── Step 1: Extract MessageSent bytes from burn tx receipt ───────────────
-    const sourceProvider = new ethers.JsonRpcProvider(CHAINS[sourceChainName].rpcUrl);
+    const sourceProvider = buildProvider(sourceChainName);
     
     let receipt: ethers.TransactionReceipt | null = null;
     for (let i = 0; i < 3; i++) {
@@ -256,11 +272,7 @@ export async function monitorAndRelay(
 
     // ── Step 4: Call receiveMessage on destination MessageTransmitter ─────────
     console.log(`[CCTP] Relaying to ${destChainName} via receiveMessage...`);
-    const destChainConfig = CHAINS[destChainName];
-    const destProvider = new ethers.JsonRpcProvider(destChainConfig.rpcUrl, {
-      chainId: destChainConfig.chainId,
-      name: destChainConfig.name
-    }, { staticNetwork: true });
+    const destProvider = buildProvider(destChainName);
     const destSigner = new ethers.Wallet(process.env.RELAYER_PRIVATE_KEY!, destProvider);
 
     const messageTransmitter = new ethers.Contract(

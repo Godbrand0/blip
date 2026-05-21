@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { monitorAndRelay } from "../services/cctp-monitor";
 import { collections } from "../database/db";
+import { CHAINS } from "../config/chains";
+
+const CHAIN_DISPLAY_NAMES: Record<string, string> = Object.fromEntries(
+  Object.entries(CHAINS).map(([key, cfg]) => [key, cfg.name])
+);
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -39,8 +44,8 @@ router.get("/stats", async (req, res) => {
       { $sort: { count: -1 } }
     ]).toArray();
 
-    const topTarget = destChainsAgg.length > 0 
-      ? (destChainsAgg[0]._id === "WORLD_CHAIN" ? "World Chain Sepolia" : "Base Sepolia") 
+    const topTarget = destChainsAgg.length > 0
+      ? (CHAIN_DISPLAY_NAMES[destChainsAgg[0]._id] ?? destChainsAgg[0]._id)
       : "Base Sepolia";
 
     // 4. Fetch 10 most recent global transfers for explorer feed

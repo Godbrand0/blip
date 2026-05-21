@@ -72,7 +72,14 @@ export function NavBar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-black md:top-0 md:bottom-auto md:border-t-0 md:border-b-2">
-      <div className="mx-auto flex max-w-7xl items-center justify-around md:justify-end md:gap-16 py-4 px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-around md:justify-between py-4 px-8">
+        <Link href="/" className="hidden md:flex items-center gap-3 shrink-0">
+          <div className="w-8 h-8 border-2 border-white flex items-center justify-center overflow-hidden">
+            <img src="/favicon.ico" alt="Blip" className="w-6 h-6 object-contain" />
+          </div>
+          <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white">Blip</span>
+        </Link>
+        <div className="flex items-center justify-around md:justify-end md:gap-16 w-full md:w-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -94,6 +101,7 @@ export function NavBar() {
             </Link>
           );
         })}
+        </div>
       </div>
     </nav>
   );

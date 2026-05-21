@@ -3,20 +3,20 @@
 import { useState, useEffect } from "react";
 import { AuthGate } from "@/src/components/AuthGate";
 import { useAuth } from "@/src/contexts/AuthContext";
-import { useReadContract, useSwitchChain, useAccount, useWalletClient } from "wagmi";
+import { useSwitchChain, useAccount, useWalletClient } from "wagmi";
 import { createPublicClient, http, fallback, formatUnits, erc20Abi } from "viem";
 import { MiniKit } from "@worldcoin/minikit-js";
-import {
-  CHAIN_CONFIGS,
-  TOKEN_MESSENGER_ABI,
-  ERC20_ABI,
-  WORLD_CHAIN_USDC,
-  BASE_SEPOLIA_USDC,
-} from "@/src/config/contracts";
-import { worldchainSepolia } from "@/wagmi-config";
+import { CHAIN_CONFIGS, TOKEN_MESSENGER_ABI, ERC20_ABI } from "@/src/config/contracts";
+import { worldchainSepolia, monadTestnet, arcTestnet } from "@/wagmi-config";
 import { baseSepolia } from "wagmi/chains";
+import { ArrowRightLeft, ArrowLeft, CheckCircle, Loader2, AlertCircle, Wallet, Repeat, Droplets } from "lucide-react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { useIntents } from "@/hooks/useIntents";
+import { getSocket } from "@/lib/websocket";
+import { ChatInterface } from "@/components/ChatInterface";
 
-// Custom public clients backed by reliable RPCs, bypassing wagmi's transport config
+// Public clients per chain, backed by reliable RPCs (bypasses wagmi transport config)
 const wcPublicClient = createPublicClient({
   chain: worldchainSepolia,
   transport: fallback([
@@ -34,12 +34,26 @@ const basePublicClient = createPublicClient({
     http("https://base-sepolia.gateway.tenderly.co"),
   ]),
 });
-import { ArrowRightLeft, ArrowLeft, CheckCircle, Loader2, AlertCircle, Wallet, Repeat, Droplets } from "lucide-react";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { useIntents } from "@/hooks/useIntents";
-import { getSocket } from "@/lib/websocket";
-import { ChatInterface } from "@/components/ChatInterface";
+const monadPublicClient = createPublicClient({
+  chain: monadTestnet,
+  transport: fallback([
+    http("https://testnet-rpc.monad.xyz"),
+    http("https://rpc.ankr.com/monad_testnet"),
+  ]),
+});
+const arcPublicClient = createPublicClient({
+  chain: arcTestnet,
+  transport: http("https://rpc.testnet.arc.network"),
+});
+
+const PUBLIC_CLIENTS: Record<number, ReturnType<typeof createPublicClient>> = {
+  [worldchainSepolia.id]: wcPublicClient,
+  [baseSepolia.id]: basePublicClient,
+  [monadTestnet.id]: monadPublicClient,
+  [arcTestnet.id]: arcPublicClient,
+};
+
+const SUPPORTED_CHAIN_IDS = [worldchainSepolia.id, baseSepolia.id, monadTestnet.id, arcTestnet.id];
 
 function usdcToRaw(amount: number): string {
   return BigInt(Math.round(amount * 1e6)).toString();
@@ -65,11 +79,11 @@ function BridgeForm() {
 
   const [sourceChainId, setSourceChainId] = useState<number>(worldchainSepolia.id);
   const [destChainId, setDestChainId] = useState<number>(baseSepolia.id);
-  
+
   const sourceConfig = CHAIN_CONFIGS[sourceChainId];
   const destConfig = CHAIN_CONFIGS[destChainId];
 
-  const sourcePublicClient = sourceChainId === worldchainSepolia.id ? wcPublicClient : basePublicClient;
+  const sourcePublicClient = PUBLIC_CLIENTS[sourceChainId];
 
   const [amount, setAmount] = useState("");
   const [useMyWallet, setUseMyWallet] = useState(true);
@@ -149,34 +163,33 @@ function BridgeForm() {
     };
   }, [step, intentId]); // intentionally excludes relayStatus to avoid restarting interval on each status change
 
-  // Fetch USDC balances using reliable RPC clients
+  // Fetch USDC balances for the currently selected source and destination chains
   const [sourceUsdcBalRaw, setSourceUsdcBalRaw] = useState<bigint>(BigInt(0));
   const [destUsdcBalRaw, setDestUsdcBalRaw] = useState<bigint>(BigInt(0));
 
   useEffect(() => {
     if (!walletAddress) return;
+    setSourceUsdcBalRaw(BigInt(0));
+    setDestUsdcBalRaw(BigInt(0));
+
     const fetchUsdc = async () => {
       try {
-        // Fetch each chain's balance using its dedicated client/address
-        const [worldBal, baseBal] = await Promise.all([
-          wcPublicClient.readContract({
-            address: WORLD_CHAIN_USDC as `0x${string}`,
+        const [sourceBal, destBal] = await Promise.all([
+          PUBLIC_CLIENTS[sourceChainId].readContract({
+            address: CHAIN_CONFIGS[sourceChainId].usdc as `0x${string}`,
             abi: erc20Abi,
             functionName: "balanceOf",
             args: [walletAddress as `0x${string}`],
           }),
-          basePublicClient.readContract({
-            address: BASE_SEPOLIA_USDC as `0x${string}`,
+          PUBLIC_CLIENTS[destChainId].readContract({
+            address: CHAIN_CONFIGS[destChainId].usdc as `0x${string}`,
             abi: erc20Abi,
             functionName: "balanceOf",
             args: [walletAddress as `0x${string}`],
           }),
         ]);
-
-        // Map the results back to source/dest based on the current direction
-        const isWorldToBase = sourceChainId === 4801;
-        setSourceUsdcBalRaw(isWorldToBase ? (worldBal as bigint) : (baseBal as bigint));
-        setDestUsdcBalRaw(isWorldToBase ? (baseBal as bigint) : (worldBal as bigint));
+        setSourceUsdcBalRaw(sourceBal as bigint);
+        setDestUsdcBalRaw(destBal as bigint);
       } catch (e) {
         console.error("[CCTP] Bridge balance sync error:", e);
       }
@@ -184,7 +197,7 @@ function BridgeForm() {
     fetchUsdc();
     const id = setInterval(fetchUsdc, 10000);
     return () => clearInterval(id);
-  }, [walletAddress, sourceChainId]); // Dependencies on walletAddress and direction (sourceChainId)
+  }, [walletAddress, sourceChainId, destChainId]);
 
   const sourceUsdcBalance = parseFloat(formatUnits(sourceUsdcBalRaw, 6));
   const destUsdcBalance = parseFloat(formatUnits(destUsdcBalRaw, 6));
@@ -219,9 +232,24 @@ function BridgeForm() {
   };
 
   const handleSwitchDirection = () => {
-    const oldSource = sourceChainId;
     setSourceChainId(destChainId);
-    setDestChainId(oldSource);
+    setDestChainId(sourceChainId);
+    setAmount("");
+  };
+
+  const handleSourceChainChange = (chainId: number) => {
+    if (chainId === destChainId) {
+      setDestChainId(sourceChainId);
+    }
+    setSourceChainId(chainId);
+    setAmount("");
+  };
+
+  const handleDestChainChange = (chainId: number) => {
+    if (chainId === sourceChainId) {
+      setSourceChainId(destChainId);
+    }
+    setDestChainId(chainId);
     setAmount("");
   };
 
@@ -339,8 +367,8 @@ function BridgeForm() {
             recipient,
 
             recordId: _recordId,
-            sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
-            destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+            sourceChain: CHAIN_CONFIGS[sourceChainId].backendKey,
+            destChain: CHAIN_CONFIGS[destChainId].backendKey,
           }),
         });
 
@@ -355,8 +383,8 @@ function BridgeForm() {
           status: "PENDING",
           burnTxHash: txHash,
           sourceTxHash: txHash,
-          sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
-          destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+          sourceChain: CHAIN_CONFIGS[sourceChainId].backendKey,
+          destChain: CHAIN_CONFIGS[destChainId].backendKey,
         });
 
         setIntentId(result.intentId);
@@ -419,8 +447,8 @@ function BridgeForm() {
             recipient,
 
             recordId,
-            sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
-            destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+            sourceChain: CHAIN_CONFIGS[sourceChainId].backendKey,
+            destChain: CHAIN_CONFIGS[destChainId].backendKey,
           }),
         });
 
@@ -435,8 +463,8 @@ function BridgeForm() {
           status: "PENDING",
           burnTxHash: burnHash,
           sourceTxHash: burnHash,
-          sourceChain: sourceChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
-          destChain: destChainId === 4801 ? 'WORLD_CHAIN' : 'BASE_SEPOLIA',
+          sourceChain: CHAIN_CONFIGS[sourceChainId].backendKey,
+          destChain: CHAIN_CONFIGS[destChainId].backendKey,
         });
 
         setIntentId(result.intentId);
@@ -498,23 +526,41 @@ function BridgeForm() {
           <div className="grid grid-cols-2 gap-px bg-white border-2 border-white">
             <div className="bg-black p-8 flex flex-col gap-3">
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Origin</span>
-              <span className="text-2xl font-black uppercase tracking-tighter">{sourceConfig.name}</span>
-              <div className="mt-4 flex flex-col gap-1">
+              <select
+                value={sourceChainId}
+                onChange={(e) => handleSourceChainChange(Number(e.target.value))}
+                disabled={step !== 'input'}
+                className="bg-black text-white text-lg font-black uppercase tracking-tighter border-0 outline-none cursor-pointer disabled:opacity-50 appearance-none"
+              >
+                {SUPPORTED_CHAIN_IDS.map(id => (
+                  <option key={id} value={id}>{CHAIN_CONFIGS[id].name}</option>
+                ))}
+              </select>
+              <div className="mt-2 flex flex-col gap-1">
                 <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Available Allocation:</span>
                 <span className="text-sm font-black mono">{sourceUsdcBalance.toFixed(2)} USDC</span>
               </div>
             </div>
             <div className="bg-black p-8 flex flex-col gap-3 border-l-2 border-white">
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Destination</span>
-              <span className="text-2xl font-black uppercase tracking-tighter">{destConfig.name}</span>
-              <div className="mt-4 flex flex-col gap-1">
+              <select
+                value={destChainId}
+                onChange={(e) => handleDestChainChange(Number(e.target.value))}
+                disabled={step !== 'input'}
+                className="bg-black text-white text-lg font-black uppercase tracking-tighter border-0 outline-none cursor-pointer disabled:opacity-50 appearance-none"
+              >
+                {SUPPORTED_CHAIN_IDS.map(id => (
+                  <option key={id} value={id}>{CHAIN_CONFIGS[id].name}</option>
+                ))}
+              </select>
+              <div className="mt-2 flex flex-col gap-1">
                 <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Target Balance:</span>
                 <span className="text-sm font-black mono">{destUsdcBalance.toFixed(2)} USDC</span>
               </div>
             </div>
           </div>
-          
-          <button 
+
+          <button
             onClick={handleSwitchDirection}
             disabled={step !== 'input'}
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white text-black border-4 border-black flex items-center justify-center hover:rotate-180 transition-all duration-500 z-20 disabled:opacity-50"

@@ -105,7 +105,6 @@ export function useIntents(walletAddress?: string | null) {
       updateIntent(data.intentId, {
         status: "COMPLETED",
         baseTxHash: data.baseTxHash,
-        basescanUrl: `https://sepolia.basescan.org/tx/${data.baseTxHash}`,
       });
     });
 

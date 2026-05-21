@@ -1,26 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  Wallet, 
-  ArrowRightLeft, 
-  Sparkles, 
-  TrendingUp, 
-  Link as LinkIcon, 
-  Loader2, 
-  CheckCircle, 
-  AlertCircle, 
-  ArrowRight,
-  Activity,
-  Layers,
-  ArrowRightCircle
-} from "lucide-react";
+import { Sparkles, Link as LinkIcon, ArrowRightCircle } from "lucide-react";
 import { useAuth } from "@/src/contexts/AuthContext";
-import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { useEffect, useState } from "react";
+
+const CHAIN_LABEL: Record<string, string> = {
+  WORLD_CHAIN: "World",
+  BASE_SEPOLIA: "Base",
+  MONAD_TESTNET: "Monad",
+  ARC_TESTNET: "Arc",
+};
+
+const CHAIN_EXPLORER: Record<string, string> = {
+  WORLD_CHAIN: "https://worldchain-sepolia.explorer.alchemy.com",
+  BASE_SEPOLIA: "https://sepolia.basescan.org",
+  MONAD_TESTNET: "https://testnet.monadexplorer.com",
+  ARC_TESTNET: "https://testnet.arcscan.app",
+};
 
 export default function HomePage() {
   const { walletAddress, isMiniKit, setWalletAddress } = useAuth();
@@ -37,6 +37,7 @@ export default function HomePage() {
     completedBridges: number;
     totalUsdcBridged: number;
     topTarget: string;
+    successRate?: number;
     recentBridges: Array<{
       intentId: string;
       userMasked: string;
@@ -154,45 +155,49 @@ export default function HomePage() {
       );
     }
 
+    const successRate = stats && stats.totalBridges > 0
+      ? Math.round((stats.completedBridges / stats.totalBridges) * 100)
+      : 0;
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-px bg-white border-2 border-white">
         <div className="bg-black p-8 flex flex-col justify-between hover:bg-zinc-950 transition-colors group">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Total USDC Bridged</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Total Transfers</span>
           <div>
             <h4 className="text-4xl font-black mono tracking-tighter">
-              ${stats?.totalUsdcBridged.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}
+              {stats?.totalBridges ?? 0}
             </h4>
-            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">USDC Decimals Verified</span>
+            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">All Users · All Chains</span>
           </div>
         </div>
 
         <div className="bg-black p-8 flex flex-col justify-between hover:bg-zinc-950 transition-colors group border-t-2 md:border-t-0 md:border-l-2 border-white">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Bridges Finalized</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Completed</span>
           <div>
             <h4 className="text-4xl font-black mono tracking-tighter">
-              {stats?.totalBridges || 0}
+              {stats?.completedBridges ?? 0}
             </h4>
-            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">100% CCTP Handshake</span>
+            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">{successRate}% Success Rate</span>
           </div>
         </div>
 
         <div className="bg-black p-8 flex flex-col justify-between hover:bg-zinc-950 transition-colors group border-t-2 md:border-t-0 md:border-l-2 border-white">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Average Handshake Speed</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Total Bridged</span>
           <div>
-            <h4 className="text-4xl font-black mono tracking-tighter flex items-center gap-2">
-              8.2s <span className="text-xs border border-white px-2 py-0.5 font-bold tracking-widest">FAST</span>
+            <h4 className="text-4xl font-black mono tracking-tighter">
+              {stats?.totalUsdcBridged.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? "0.00"}
             </h4>
-            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">Attestation Relay Speed</span>
+            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">USDC · Verified On-Chain</span>
           </div>
         </div>
 
         <div className="bg-black p-8 flex flex-col justify-between hover:bg-zinc-950 transition-colors group border-t-2 md:border-t-0 md:border-l-2 border-white">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Top Destination Node</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 block">Top Destination</span>
           <div>
             <h4 className="text-xl font-black uppercase tracking-tight line-clamp-1">
               {stats?.topTarget || "Base Sepolia"}
             </h4>
-            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">Highest Incoming Intent</span>
+            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-2 block">Highest Incoming Volume</span>
           </div>
         </div>
       </div>
@@ -237,14 +242,14 @@ export default function HomePage() {
                   <td className="p-4 border-r border-zinc-800 text-white select-all">{tx.userMasked}</td>
                   <td className="p-4 border-r border-zinc-800 font-bold text-white">{tx.amount.toFixed(2)} USDC</td>
                   <td className="p-4 border-r border-zinc-800 text-[10px] font-black uppercase tracking-wider text-zinc-400">
-                    {tx.sourceChain === "WORLD_CHAIN" ? "World" : "Base"} 
-                    <span className="mx-2 text-zinc-700">→</span> 
-                    {tx.destChain === "WORLD_CHAIN" ? "World" : "Base"}
+                    {CHAIN_LABEL[tx.sourceChain] ?? tx.sourceChain}
+                    <span className="mx-2 text-zinc-700">→</span>
+                    {CHAIN_LABEL[tx.destChain] ?? tx.destChain}
                   </td>
                   <td className="p-4 border-r border-zinc-800">
                     <span className={`text-[8px] font-black px-2 py-0.5 border ${
-                      tx.status === "COMPLETED" 
-                        ? "border-white text-white" 
+                      tx.status === "COMPLETED"
+                        ? "border-white text-white"
                         : tx.status === "FAILED"
                         ? "border-red-800 text-red-600"
                         : "border-zinc-700 text-zinc-400 animate-pulse"
@@ -254,12 +259,9 @@ export default function HomePage() {
                   </td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      {tx.burnTxHash && (
-                        <a 
-                          href={tx.sourceChain === 'WORLD_CHAIN'
-                            ? `https://worldchain-sepolia.explorer.alchemy.com/tx/${tx.burnTxHash}`
-                            : `https://sepolia.basescan.org/tx/${tx.burnTxHash}`
-                          }
+                      {tx.burnTxHash && CHAIN_EXPLORER[tx.sourceChain] && (
+                        <a
+                          href={`${CHAIN_EXPLORER[tx.sourceChain]}/tx/${tx.burnTxHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Source Node Explorer"
@@ -268,12 +270,9 @@ export default function HomePage() {
                           <LinkIcon size={10} />
                         </a>
                       )}
-                      {tx.destTxHash && (
-                        <a 
-                          href={tx.destChain === 'WORLD_CHAIN'
-                            ? `https://worldchain-sepolia.explorer.alchemy.com/tx/${tx.destTxHash}`
-                            : `https://sepolia.basescan.org/tx/${tx.destTxHash}`
-                          }
+                      {tx.destTxHash && CHAIN_EXPLORER[tx.destChain] && (
+                        <a
+                          href={`${CHAIN_EXPLORER[tx.destChain]}/tx/${tx.destTxHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Destination Node Explorer"
@@ -299,8 +298,8 @@ export default function HomePage() {
         {/* Navigation & Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-8 border-b-2 border-white mb-12">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-white flex items-center justify-center hover:rotate-90 transition-all duration-300">
-              <span className="text-black font-black text-2xl">B</span>
+            <div className="w-10 h-10 border-2 border-white flex items-center justify-center hover:rotate-90 transition-all duration-300 overflow-hidden">
+              <img src="/favicon.ico" alt="Blip" className="w-8 h-8 object-contain" />
             </div>
             <div>
               <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">Blip</h1>
@@ -331,7 +330,7 @@ export default function HomePage() {
           <section className="border-4 border-white p-8 md:p-16 bg-zinc-950 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-12 relative overflow-hidden group">
             <div className="space-y-6 max-w-2xl relative z-10">
               <span className="inline-block border border-white px-3 py-1 text-[8px] font-black uppercase tracking-[0.25em]">
-                Now Active on World Chain & Base Sepolia
+                Now Active on World Chain · Base · Monad · Arc
               </span>
               <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-none">
                 AI-Powered Cross-Chain USDC handshakes.
@@ -448,30 +447,36 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="border border-zinc-800 p-8 bg-zinc-950/20 flex flex-col justify-between opacity-50 relative group">
+              <div className="border-2 border-white p-8 bg-zinc-950 flex flex-col justify-between hover:bg-black transition-all group">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-black uppercase tracking-tight text-zinc-600">Ethereum</span>
-                    <span className="text-[9px] border border-zinc-800 px-2 py-0.5 font-bold tracking-widest text-zinc-600 uppercase">FUTURE</span>
+                    <span className="text-xl font-black uppercase tracking-tight">Monad Testnet</span>
+                    <span className="text-[9px] border border-white px-2 py-0.5 font-bold tracking-widest uppercase">ACTIVE</span>
                   </div>
-                  <p className="text-xs text-zinc-600 leading-relaxed">
-                    Ethereum Mainnet L1 ledger. Upcoming native deployment matching Circle USDC release.
-                    </p>
-                </div>
-                <span className="mt-8 text-[8px] font-mono text-zinc-700 tracking-wider">ROADMAP DEPLOYMENT</span>
-              </div>
-
-              <div className="border border-zinc-800 p-8 bg-zinc-950/20 flex flex-col justify-between opacity-50 relative group">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl font-black uppercase tracking-tight text-zinc-600">L2 Rollups</span>
-                    <span className="text-[9px] border border-zinc-800 px-2 py-0.5 font-bold tracking-widest text-zinc-600 uppercase">FUTURE</span>
-                  </div>
-                  <p className="text-xs text-zinc-600 leading-relaxed">
-                    Optimism, Arbitrum, Avalanche, Polygon, and World Chain Mainnet native CCTP channels.
+                  <p className="text-xs text-zinc-500 leading-relaxed">
+                    10,000 TPS parallel EVM chain. Sub-second finality with native CCTP V2 USDC bridging support.
                   </p>
                 </div>
-                <span className="mt-8 text-[8px] font-mono text-zinc-700 tracking-wider">ROADMAP DEPLOYMENT</span>
+                <div className="mt-8 border-t border-zinc-900 pt-4 flex justify-between text-[9px] font-mono text-zinc-500">
+                  <span>CCTP Domain: 15</span>
+                  <a href="https://testnet.monadexplorer.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">EXPLORER</a>
+                </div>
+              </div>
+
+              <div className="border-2 border-white p-8 bg-zinc-950 flex flex-col justify-between hover:bg-black transition-all group">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-black uppercase tracking-tight">Arc Testnet</span>
+                    <span className="text-[9px] border border-white px-2 py-0.5 font-bold tracking-widest uppercase">ACTIVE</span>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed">
+                    USDC-native L1 with sub-second finality. Built for financial applications with Circle CCTP and Gateway natively integrated.
+                  </p>
+                </div>
+                <div className="mt-8 border-t border-zinc-900 pt-4 flex justify-between text-[9px] font-mono text-zinc-500">
+                  <span>CCTP Domain: 26</span>
+                  <a href="https://testnet.arcscan.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">EXPLORER</a>
+                </div>
               </div>
             </div>
           </section>
@@ -504,14 +509,14 @@ export default function HomePage() {
                 <div className="w-8 h-8 border border-white flex items-center justify-center font-bold text-xs mb-6">03</div>
                 <h4 className="text-lg font-black uppercase tracking-tight mb-2">Attestation Sync</h4>
                 <p className="text-xs text-zinc-500 leading-relaxed">
-                  Circle's Iris API observes the transaction logs on World Chain Sepolia and generates a cryptographic minting authorization.
+                  Circle's Iris API observes the burn transaction on the source chain and generates a cryptographic minting authorization.
                 </p>
               </div>
               <div className="bg-black p-8 hover:bg-zinc-950 transition-all group border-t-2 xl:border-t-0 xl:border-l-2 border-white">
                 <div className="w-8 h-8 border border-white flex items-center justify-center font-bold text-xs mb-6">04</div>
                 <h4 className="text-lg font-black uppercase tracking-tight mb-2">Relayer Mint</h4>
                 <p className="text-xs text-zinc-500 leading-relaxed">
-                  The Blip Relayer polls attestation signatures and calls `receiveMessage` on Base Sepolia, minting USDC directly to the recipient.
+                  The Blip Relayer polls attestation signatures and calls `receiveMessage` on the destination chain, minting USDC directly to the recipient.
                 </p>
               </div>
             </div>
